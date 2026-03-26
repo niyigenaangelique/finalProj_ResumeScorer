@@ -1,0 +1,861 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Dashboard - Resume Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background-color: #007bff;
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+        
+        .nav {
+            background-color: #343a40;
+            padding: 0.5rem 2rem;
+        }
+        
+        .nav a {
+            color: white;
+            text-decoration: none;
+            margin-right: 2rem;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        
+        .nav a:hover, .nav a.active {
+            background-color: #007bff;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .search-bar {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .search-bar input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .applicants-table {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .table-header {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: bold;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .score-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        
+        .score-excellent {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .score-good {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .score-fair {
+            background-color: #ffeaa7;
+            color: #856404;
+        }
+        
+        .score-poor {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .status-pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-reviewed {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .status-shortlisted {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status-rejected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #1e7e34;
+        }
+        
+        .btn-warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-warning:hover {
+            background-color: #e0a800;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: black;
+        }
+        
+        .applicant-details {
+            margin-top: 1rem;
+        }
+        
+        .detail-section {
+            margin-bottom: 1.5rem;
+        }
+        
+        .detail-section h3 {
+            color: #007bff;
+            margin-bottom: 0.5rem;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .feature-item {
+            background-color: #f8f9fa;
+            padding: 0.75rem;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .recommendations {
+            background-color: #fff3cd;
+            padding: 1rem;
+            border-radius: 4px;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .recommendations ul {
+            margin: 0.5rem 0 0 1.5rem;
+        }
+        
+        .add-applicant-form {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .form-group textarea {
+            height: 150px;
+            resize: vertical;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>HR Dashboard</h1>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <span style="color: white; font-size: 0.9rem;">Welcome, {{ current_user or 'HR' }}</span>
+            <a href="/logout" class="btn btn-warning" style="background-color: #ffc107; color: #333; text-decoration: none; padding: 0.5rem 1rem; border-radius: 4px;">Logout</a>
+        </div>
+    </div>
+    
+    <div class="nav">
+        <a href="#" class="active">Applications</a>
+        <a href="#" onclick="showAddJob()">Post Job</a>
+        <a href="#" onclick="showStatistics()">Statistics</a>
+    </div>
+    
+    <div class="container">
+        <!-- Statistics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">{{ statistics.total_applicants }}</div>
+                <div class="stat-label">Total Applicants</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ statistics.scored_applicants }}</div>
+                <div class="stat-label">Resumes Scored</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ statistics.average_score }}</div>
+                <div class="stat-label">Average Score</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ statistics.score_distribution.get('Excellent', 0) }}</div>
+                <div class="stat-label">Excellent Scores</div>
+            </div>
+        </div>
+        
+        <!-- Statistics Graphs -->
+        <div id="statisticsSection" style="display: none;">
+            <h2 style="margin: 2rem 0;">Application Statistics</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+                <div style="background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h3>Score Distribution</h3>
+                    <canvas id="scoreChart" width="400" height="300"></canvas>
+                </div>
+                <div style="background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h3>Application Status</h3>
+                    <canvas id="statusChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Search Bar -->
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="Search applicants by name, email, or position..." onkeyup="searchApplicants()">
+        </div>
+        
+        <!-- Add Job Form -->
+        <div id="addJobForm" class="add-applicant-form" style="display: none;">
+            <h2>Post New Job</h2>
+            <form id="newJobForm">
+                <div class="form-group">
+                    <label for="job_title">Job Title *</label>
+                    <input type="text" id="job_title" name="job_title" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="job_department">Department *</label>
+                        <input type="text" id="job_department" name="job_department" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="job_location">Location</label>
+                        <input type="text" id="job_location" name="job_location">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="job_salary">Salary</label>
+                    <input type="text" id="job_salary" name="job_salary" placeholder="e.g., $80,000 - $100,000">
+                </div>
+                <div class="form-group">
+                    <label for="job_description">Job Description *</label>
+                    <textarea id="job_description" name="job_description" placeholder="Describe the role and responsibilities..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="job_requirements">Requirements *</label>
+                    <textarea id="job_requirements" name="job_requirements" placeholder="List the required qualifications and skills..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">Post Job</button>
+                    <button type="button" class="btn btn-warning" onclick="hideAddJob()">Cancel</button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Applicants Table -->
+        <div class="applicants-table">
+            <div class="table-header">
+                Job Applications ({{ applications|length }} total)
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Applicant</th>
+                        <th>Job Title</th>
+                        <th>Department</th>
+                        <th>Resume Score</th>
+                        <th>Application Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for app in applications %}
+                    <tr>
+                        <td><strong>{{ app.applicant_name }}</strong><br><small>{{ app.applicant_email }}</small></td>
+                        <td>{{ app.job_title }}</td>
+                        <td>{{ app.department }}</td>
+                        <td>
+                            {% if app.resume_score %}
+                                <span class="score-badge score-{{ 'excellent' if app.resume_score >= 80 else 'good' if app.resume_score >= 60 else 'fair' if app.resume_score >= 40 else 'poor' }}">
+                                    {{ "%.1f"|format(app.resume_score) }}/100
+                                </span>
+                            {% else %}
+                                <span class="score-badge score-poor">Not Scored</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ app.application_date[:10] }}</td>
+                        <td>
+                            <span class="status-badge status-{{ app.status or 'pending' }}">
+                                {{ (app.status or 'pending').title() }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn btn-primary" onclick="viewDetails({{ app.id }})">View</button>
+                                {% if app.resume_score %}
+                                <button class="btn btn-success" onclick="updateStatus({{ app.id }}, 'shortlisted')">Shortlist</button>
+                                {% endif %}
+                                <button class="btn btn-danger" onclick="updateStatus({{ app.id }}, 'rejected')">Reject</button>
+                                {% if app.status == 'shortlisted' and app.applicant_email %}
+                                <button class="btn btn-info" onclick="showEmailForm({{ app.id }}, '{{ app.applicant_email }}', '{{ app.applicant_name }}')">Email</button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Applicant Details Modal -->
+    <div id="detailsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 id="modalTitle">Applicant Details</h2>
+            <div id="modalBody" class="applicant-details">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Email Modal -->
+    <div id="emailModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEmailModal()">&times;</span>
+            <h2>Send Email to Applicant</h2>
+            <form id="emailForm">
+                <div class="form-group">
+                    <label for="emailTo">To:</label>
+                    <input type="email" id="emailTo" name="emailTo" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="emailSubject">Subject:</label>
+                    <input type="text" id="emailSubject" name="emailSubject" value="Regarding Your Job Application" required>
+                </div>
+                <div class="form-group">
+                    <label for="emailMessage">Message:</label>
+                    <textarea id="emailMessage" name="emailMessage" rows="8" placeholder="Enter your message here..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">Send Email</button>
+                    <button type="button" class="btn btn-warning" onclick="closeEmailModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        let currentApplications = {{ applications|tojson }};
+        
+        function showAddJob() {
+            document.getElementById('addJobForm').style.display = 'block';
+        }
+        
+        function hideAddJob() {
+            document.getElementById('addJobForm').style.display = 'none';
+            document.getElementById('newJobForm').reset();
+        }
+        
+        function searchApplicants() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const rows = document.querySelectorAll('tbody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
+        }
+        
+        function showStatistics() {
+            document.getElementById('addJobForm').style.display = 'none';
+            document.getElementById('statisticsSection').style.display = 'block';
+            
+            // Hide applications table
+            document.querySelector('.applicants-table').style.display = 'none';
+            
+            // Create score distribution chart
+            const scoreData = {{ statistics.score_distribution|tojson }};
+            const scoreLabels = Object.keys(scoreData);
+            const scoreValues = Object.values(scoreData);
+            
+            new Chart(document.getElementById('scoreChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: scoreLabels,
+                    datasets: [{
+                        data: scoreValues,
+                        backgroundColor: [
+                            '#28a745', // Excellent - Green
+                            '#ffc107', // Good - Yellow
+                            '#fd7e14', // Fair - Orange
+                            '#dc3545'  // Poor - Red
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+            
+            // Create application status chart
+            const statusCounts = {
+                'Pending': 0,
+                'Reviewed': 0,
+                'Shortlisted': 0,
+                'Rejected': 0
+            };
+            
+            {{ applications|tojson }}.forEach(app => {
+                const status = app.status || 'pending';
+                const statusKey = status.charAt(0).toUpperCase() + status.slice(1);
+                if (statusCounts.hasOwnProperty(statusKey)) {
+                    statusCounts[statusKey]++;
+                }
+            });
+            
+            new Chart(document.getElementById('statusChart'), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(statusCounts),
+                    datasets: [{
+                        label: 'Number of Applications',
+                        data: Object.values(statusCounts),
+                        backgroundColor: [
+                            '#fff3cd', // Pending - Yellow
+                            '#d1ecf1', // Reviewed - Blue
+                            '#d4edda', // Shortlisted - Green
+                            '#f8d7da'  // Rejected - Red
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+        
+        function viewDetails(applicationId) {
+            // Find the application
+            const application = currentApplications.find(app => app.id == applicationId);
+            if (!application) {
+                alert('Application not found');
+                return;
+            }
+            
+            const modal = document.getElementById('detailsModal');
+            const modalBody = document.getElementById('modalBody');
+            
+            let featuresHtml = '';
+            if (application.features) {
+                featuresHtml = `
+                    <div class="features-grid">
+                        <div class="feature-item">
+                            <strong>Tech Skills</strong><br>
+                            ${application.features.technical_skills || 0}
+                        </div>
+                        <div class="feature-item">
+                            <strong>Soft Skills</strong><br>
+                            ${application.features.soft_skills || 0}
+                        </div>
+                        <div class="feature-item">
+                            <strong>Experience</strong><br>
+                            ${application.features.experience_years || 0} years
+                        </div>
+                        <div class="feature-item">
+                            <strong>Word Count</strong><br>
+                            ${application.features.word_count || 0}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            let recommendationsHtml = '';
+            if (application.recommendations && application.recommendations.length > 0) {
+                recommendationsHtml = `
+                    <div class="recommendations">
+                        <h4>Recommendations:</h4>
+                        <ul>
+                            ${application.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+            
+            modalBody.innerHTML = `
+                <div class="detail-section">
+                    <h3>Application Information</h3>
+                    <p><strong>Applicant:</strong> ${application.applicant_name}</p>
+                    <p><strong>Email:</strong> ${application.applicant_email || 'Not provided'}</p>
+                    <p><strong>Job Title:</strong> ${application.job_title}</p>
+                    <p><strong>Department:</strong> ${application.department}</p>
+                    <p><strong>Application Date:</strong> ${new Date(application.application_date).toLocaleDateString()}</p>
+                    <p><strong>Status:</strong> 
+                        <span class="status-badge status-${application.status || 'pending'}">
+                            ${(application.status || 'pending').title()}
+                        </span>
+                    </p>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>Resume Score</h3>
+                    <p><strong>Score:</strong> 
+                        <span class="score-badge score-${application.resume_score >= 80 ? 'excellent' : application.resume_score >= 60 ? 'good' : application.resume_score >= 40 ? 'fair' : 'poor'}">
+                            ${application.resume_score ? application.resume_score.toFixed(1) : 'N/A'}/100
+                        </span>
+                    </p>
+                    ${featuresHtml}
+                </div>
+                
+                ${application.cover_letter ? `
+                <div class="detail-section">
+                    <h3>Cover Letter</h3>
+                    <p>${application.cover_letter}</p>
+                </div>
+                ` : ''}
+                
+                ${recommendationsHtml}
+            `;
+            
+            modal.style.display = 'block';
+        }
+        
+        function closeModal() {
+            document.getElementById('detailsModal').style.display = 'none';
+        }
+        
+        function showEmailForm(applicationId, email, name) {
+            const modal = document.getElementById('emailModal');
+            document.getElementById('emailTo').value = email;
+            document.getElementById('emailSubject').value = `Regarding Your Job Application`;
+            document.getElementById('emailMessage').value = `Dear ${name},
+
+We are pleased to inform you about your application status.
+
+Best regards,
+HR Team`;
+            
+            // Store application ID for sending
+            document.getElementById('emailForm').dataset.applicationId = applicationId;
+            
+            modal.style.display = 'block';
+        }
+        
+        function closeEmailModal() {
+            document.getElementById('emailModal').style.display = 'none';
+            document.getElementById('emailForm').reset();
+        }
+        
+        function updateStatus(applicationId, status) {
+            if (confirm(`Are you sure you want to ${status} this application?`)) {
+                fetch(`/application/${applicationId}/status`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `status=${status}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Status updated successfully');
+                        location.reload();
+                    } else {
+                        alert('Error updating status');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error updating status');
+                });
+            }
+        }
+        
+        // Handle new job form submission
+        document.getElementById('newJobForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData);
+            
+            fetch('/add-job', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Job posted successfully!');
+                    hideAddJob();
+                    location.reload();
+                } else {
+                    alert('Error posting job: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error posting job');
+            });
+        });
+        
+        // Handle email form submission
+        document.getElementById('emailForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const applicationId = this.dataset.applicationId;
+            const formData = new FormData(this);
+            const data = {
+                subject: formData.get('emailSubject'),
+                message: formData.get('emailMessage')
+            };
+            
+            fetch(`/send-email/${applicationId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Email sent successfully!');
+                    closeEmailModal();
+                } else {
+                    alert('Error sending email: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error sending email');
+            });
+        });
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const detailsModal = document.getElementById('detailsModal');
+            const emailModal = document.getElementById('emailModal');
+            
+            if (event.target == detailsModal) {
+                detailsModal.style.display = 'none';
+            }
+            if (event.target == emailModal) {
+                emailModal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,369 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Application Portal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background-color: #007bff;
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+        
+        .nav {
+            background-color: #343a40;
+            padding: 0.5rem 2rem;
+        }
+        
+        .nav a {
+            color: white;
+            text-decoration: none;
+            margin-right: 2rem;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        
+        .nav a:hover, .nav a.active {
+            background-color: #007bff;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        
+        .jobs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .job-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .job-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .job-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 0.5rem;
+        }
+        
+        .job-department {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        
+        .job-description {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+        
+        .job-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+        }
+        
+        .job-date {
+            color: #888;
+            font-size: 0.8rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #1e7e34;
+        }
+        
+        .application-form {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .form-group textarea {
+            height: 150px;
+            resize: vertical;
+        }
+        
+        .form-group input[type="file"] {
+            padding: 0.5rem;
+        }
+        
+        .alert {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .job-details {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .job-details h2 {
+            color: #007bff;
+            margin-bottom: 1rem;
+        }
+        
+        .no-jobs {
+            text-align: center;
+            padding: 3rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .no-jobs h3 {
+            color: #666;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Job Application Portal</h1>
+        <div>
+            <a href="/hr" class="btn btn-primary" style="background-color: #6c757d;">HR Portal</a>
+        </div>
+    </div>
+    
+    <div class="nav">
+        <a href="/" class="active">Available Jobs</a>
+        <a href="/track-application">Track Application</a>
+    </div>
+    
+    <div class="container">
+        {% if message %}
+        <div class="alert alert-{{ message_type }}">
+            {{ message }}
+        </div>
+        {% endif %}
+        
+        {% if job %}
+        <!-- Job Details View -->
+        <div class="job-details">
+            <h2>{{ job.title }}</h2>
+            <p><strong>Department:</strong> {{ job.department }}</p>
+            <p><strong>Location:</strong> {{ job.location or 'Not specified' }}</p>
+            <p><strong>Salary:</strong> {{ job.salary or 'Competitive' }}</p>
+            <p><strong>Posted:</strong> {{ job.posted_date[:10] }}</p>
+            
+            <div style="margin: 2rem 0;">
+                <h3>Job Description</h3>
+                <p>{{ job.description }}</p>
+            </div>
+            
+            <div style="margin: 2rem 0;">
+                <h3>Requirements</h3>
+                <p>{{ job.requirements }}</p>
+            </div>
+            
+            {% if not has_applied %}
+            <div class="application-form">
+                <h3>Apply for this Position</h3>
+                <form id="applicationForm">
+                    <div class="form-group">
+                        <label for="name">Full Name *</label>
+                        <input type="text" id="name" name="name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">Email *</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phone">Phone</label>
+                        <input type="tel" id="phone" name="phone">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="resume_text">Resume Text *</label>
+                        <textarea id="resume_text" name="resume_text" placeholder="Paste your resume text here..." required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="resume_file">Or Upload Resume File</label>
+                        <input type="file" id="resume_file" name="resume_file" accept=".txt,.pdf,.doc,.docx">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="cover_letter">Cover Letter</label>
+                        <textarea id="cover_letter" name="cover_letter" placeholder="Tell us why you're interested in this position..."></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success">Submit Application</button>
+                </form>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                You have already applied for this position on {{ application_date[:10] }}.
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <!-- Jobs List View -->
+        <h2 style="margin-bottom: 2rem;">Available Positions ({{ jobs|length }})</h2>
+        
+        {% if jobs %}
+        <div class="jobs-grid">
+            {% for job in jobs %}
+            <div class="job-card">
+                <div class="job-title">{{ job.title }}</div>
+                <div class="job-department">{{ job.department }}</div>
+                <div class="job-description">{{ job.description[:200] }}{% if job.description|length > 200 %}...{% endif %}</div>
+                <div class="job-meta">
+                    <span class="job-date">Posted: {{ job.posted_date[:10] }}</span>
+                    <a href="/job/{{ job.id }}" class="btn btn-primary">View Details</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-jobs">
+            <h3>No positions available at the moment</h3>
+            <p>Please check back later for new opportunities.</p>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+    
+    <script>
+        document.getElementById('applicationForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData);
+            
+            // Handle file upload
+            const fileInput = document.getElementById('resume_file');
+            if (fileInput.files.length > 0) {
+                data.resume_file = fileInput.files[0];
+            }
+            
+            try {
+                const response = await fetch('/apply/{{ job.id }}', {
+                    method: 'POST',
+                    body: JSON.stringify(data),
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Application submitted successfully!');
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error submitting application: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>
