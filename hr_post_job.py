@@ -61,8 +61,8 @@ async def post_job_page(request: Request):
 
     # Build template select options
     tpl_btns = ""
-    labels = {"software_engineer":"💻 Software Engineer","product_manager":"📦 Product Manager",
-               "designer":"🎨 UX/UI Designer","marketing":"📣 Marketing Specialist"}
+    labels = {"software_engineer":"Software Engineer","product_manager":"Product Manager",
+               "designer":"UX/UI Designer","marketing":"Marketing Specialist"}
     for key, label in labels.items():
         tpl_btns += f'<button type="button" class="tpl-btn" onclick="applyTemplate(\'{key}\')">{label}</button>'
 
@@ -79,10 +79,10 @@ async def post_job_page(request: Request):
   </div>
   <div style="display:flex;gap:10px;">
     <button class="btn btn-outline" onclick="clearDraft()">Clear Draft</button>
-    <button class="btn btn-outline" onclick="openPreview()">👁 Preview</button>
+    <button class="btn btn-outline" onclick="openPreview()"><svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/></svg> Preview</button>
     <button class="btn btn-primary" onclick="document.getElementById('postBtn').click()">
-      <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      <svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2.5'>
+        <line x1='12' y1='5' x2='12' y2='19'/><line x1='5' y1='12' x2='19' y2='12'/>
       </svg>
       Post Job
     </button>
@@ -138,9 +138,9 @@ async def post_job_page(request: Request):
           <div class="form-group"><label class="form-label">Work Mode *</label>
             <select class="form-ctrl" id="work_mode" required>
               <option value="">Select Mode</option>
-              <option value="onsite">On-site 🏢</option>
-              <option value="remote">Remote 🌍</option>
-              <option value="hybrid">Hybrid 🔀</option>
+              <option value="onsite">On-site</option>
+              <option value="remote">Remote</option>
+              <option value="hybrid">Hybrid</option>
               <option value="flexible">Flexible</option>
             </select></div>
           <div class="form-group"><label class="form-label">Min Salary</label>
@@ -204,7 +204,7 @@ async def post_job_page(request: Request):
           </label>
           <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink2);cursor:pointer;">
             <input type="checkbox" id="urgent_hiring" style="width:15px;height:15px;accent-color:var(--red);">
-            🔥 Mark as urgent
+            <svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path d='M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z'/></svg> Mark as urgent
           </label>
         </div>
       </div>
@@ -213,13 +213,13 @@ async def post_job_page(request: Request):
     <!-- Submit -->
     <div style="display:flex;gap:12px;flex-wrap:wrap;padding-bottom:32px;">
       <button type="button" id="postBtn" class="btn btn-primary btn-lg" onclick="submitJob()">
-        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        <svg width='14' height='14' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'>
+          <line x1='12' y1='5' x2='12' y2='19'/><line x1='5' y1='12' x2='19' y2='12'/>
         </svg>
         <span id="postBtnLabel">Post Job</span>
       </button>
       <button type="button" class="btn btn-outline btn-lg" onclick="openPreview()">Preview</button>
-      <button type="button" class="btn btn-outline btn-lg" onclick="saveDraft()">💾 Save Draft</button>
+      <button type="button" class="btn btn-outline btn-lg" onclick="saveDraft()"><svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z'/><polyline points='17 21 17 13 7 13 7 21'/><polyline points='7 3 7 8 15 8'/></svg> Save Draft</button>
     </div>
   </div>
 
@@ -239,10 +239,10 @@ async def post_job_page(request: Request):
       <div class="card-hd"><span class="card-title">Writing Tips</span></div>
       <div class="card-bd">
         <div style="display:flex;flex-direction:column;gap:10px;">
-          {_tip("✍️","Be specific","Vague titles get fewer applicants. Be precise about the role.")}
-          {_tip("📊","Include salary","Posts with salary ranges get 30% more quality applications.")}
-          {_tip("🎯","List must-haves only","Keep requirements to the essentials — long lists deter talent.")}
-          {_tip("🌟","Sell the role","Mention growth opportunities, team culture, and impact.")}
+          {_tip("<svg width='16' height='16' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path d='M12 20h9'/><path d='M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z'/></svg>","Be specific","Vague titles get fewer applicants. Be precise about the role.")}
+          {_tip("<svg width='16' height='16' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='18' y1='20' x2='18' y2='10'/><line x1='12' y1='20' x2='12' y2='4'/><line x1='6' y1='20' x2='6' y2='14'/></svg>","Include salary","Posts with salary ranges get 30% more quality applications.")}
+          {_tip("<svg width='16' height='16' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><circle cx='12' cy='12' r='10'/><circle cx='12' cy='12' r='6'/><circle cx='12' cy='12' r='2'/></svg>","List must-haves only","Keep requirements to the essentials — long lists deter talent.")}
+          {_tip("<svg width='16' height='16' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><polygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/></svg>","Sell the role","Mention growth opportunities, team culture, and impact.")}
         </div>
       </div>
     </div>
@@ -262,9 +262,9 @@ async def post_job_page(request: Request):
   <div style="background:var(--white);border-radius:16px;padding:32px;max-width:720px;width:90%;
               max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);position:relative;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
-      <span style="font-family:'Sora',sans-serif;font-weight:700;font-size:16px;color:var(--ink);">📋 Job Posting Preview</span>
+      <span style="font-family:'Sora',sans-serif;font-weight:700;font-size:16px;color:var(--ink);"><svg width='14' height='14' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path d='M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2'/><rect x='9' y='3' width='6' height='4' rx='1'/></svg> Job Posting Preview</span>
       <button onclick="closePreview()" style="background:var(--bg);border:1px solid var(--border);
-              border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--ink2);">✕</button>
+              border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--ink2);"><svg width='14' height='14' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='18' y1='6' x2='6' y2='18'/><line x1='6' y1='6' x2='18' y2='18'/></svg></button>
     </div>
     <div id="previewContent"></div>
   </div>
@@ -344,14 +344,14 @@ function openPreview() {{
   document.getElementById('previewContent').innerHTML = `
     <div style="border-radius:12px;overflow:hidden;border:1.5px solid var(--border);">
       <div style="background:linear-gradient(135deg,#3B6FE8,#6B4FDB);padding:24px 28px;">
-        ${{urgent?'<span class="pv-chip" style="background:rgba(240,82,82,0.3);color:#ffb3b3;">🔥 Urgent Hiring</span>':''}}
-        ${{feat?'<span class="pv-chip" style="background:rgba(255,255,255,0.2);color:#fff;">⭐ Featured</span>':''}}
+        ${{urgent?'<span class="pv-chip" style="background:rgba(240,82,82,0.3);color:#ffb3b3;">Urgent</span>':''}}
+        ${{feat?'<span class="pv-chip" style="background:rgba(255,255,255,0.2);color:#fff;">Featured</span>':''}}
         <h2 style="font-family:\'Sora\',sans-serif;font-size:22px;font-weight:800;color:#fff;margin:8px 0 12px;">${{escHtml(title)}}</h2>
         <div>
-          ${{dept?`<span class="pv-chip" style="background:rgba(255,255,255,0.15);color:rgba(255,255,255,.9);">🏢 ${{escHtml(dept)}}</span>`:''}}
-          ${{type?`<span class="pv-chip" style="background:rgba(255,255,255,0.15);color:rgba(255,255,255,.9);">💼 ${{escHtml(type)}}</span>`:''}}
-          ${{loc?`<span class="pv-chip" style="background:rgba(255,255,255,0.15);color:rgba(255,255,255,.9);">📍 ${{escHtml(loc)}}</span>`:''}}
-          ${{mode?`<span class="pv-chip" style="background:rgba(255,255,255,0.15);color:rgba(255,255,255,.9);">🌐 ${{escHtml(mode)}}</span>`:''}}
+          ${{dept?`<span class="pv-chip" style="background:rgba(255,255,255,0.15);color:rgba(255,255,255,.9);"><svg width='11' height='11' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path d='M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/><polyline points='9 22 9 12 15 12 15 22'/></svg> ${{escHtml(dept)}}</span>`:''}}
+          ${{type?`<span class="pv-chip" style="background:rgba(255,255,255,0.15);color:rgba(255,255,255,.9);"><svg width='12' height='12' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><rect x='2' y='7' width='20' height='14' rx='2'/><path d='M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2'/></svg> ${{escHtml(type)}}</span>`:''}}
+          ${{loc?`<span class="pv-chip" style="background:rgba(255,255,255,0.15);color:rgba(255,255,255,.9);"><svg width='11' height='11' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path d='M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z'/><circle cx='12' cy='10' r='3'/></svg> ${{escHtml(loc)}}</span>`:''}}
+          ${{mode?`<span class="pv-chip" style="background:rgba(255,255,255,0.15);color:rgba(255,255,255,.9);"><svg width='12' height='12' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><circle cx='12' cy='12' r='10'/><line x1='2' y1='12' x2='22' y2='12'/><path d='M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z'/></svg> ${{escHtml(mode)}}</span>`:''}}
         </div>
       </div>
       <div style="padding:24px 28px;background:var(--white);">
@@ -390,7 +390,7 @@ function saveDraft() {{
   data.urgent_hiring = document.getElementById('urgent_hiring').checked;
   localStorage.setItem('jobDraft', JSON.stringify(data));
   const ind = document.getElementById('autoSaveIndicator');
-  ind.textContent = '✅ Saved at '+new Date().toLocaleTimeString();
+  ind.textContent = 'Saved at '+new Date().toLocaleTimeString();
   setTimeout(()=>{{ ind.textContent='Auto-save every 30s'; }}, 2500);
 }}
 
@@ -449,7 +449,7 @@ function submitJob() {{
     btn.disabled = false;
     lbl.textContent = 'Post Job';
     if (d.success) {{
-      showToast('Job Posted! ✓','Redirecting to job management…','success');
+      showToast('Job Posted','Redirecting to job management…','success');
       localStorage.removeItem('jobDraft');
       setTimeout(()=>{{ window.location.href='/jobs'; }},1400);
     }} else {{

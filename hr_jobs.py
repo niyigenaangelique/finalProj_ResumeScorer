@@ -44,10 +44,10 @@ async def job_management(request: Request):
 
 <!-- ══ STATS ══ -->
 <div class="stats-row" style="margin-bottom:24px;">
-  <div class="stat-tile"><div class="stat-icon">💼</div><div class="stat-body"><div class="stat-label">Total Jobs</div><div class="stat-value">{total_jobs}</div></div></div>
-  <div class="stat-tile"><div class="stat-icon">✅</div><div class="stat-body"><div class="stat-label">Active Listings</div><div class="stat-value">{active_jobs}</div></div></div>
-  <div class="stat-tile"><div class="stat-icon">📋</div><div class="stat-body"><div class="stat-label">Total Applications</div><div class="stat-value">{total_apps}</div></div></div>
-  <div class="stat-tile"><div class="stat-icon">⏳</div><div class="stat-body"><div class="stat-label">Pending Review</div><div class="stat-value">{pending}</div></div></div>
+  <div class="stat-tile"><div class="stat-icon"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg></div><div class="stat-body"><div class="stat-label">Total Jobs</div><div class="stat-value">{total_jobs}</div></div></div>
+  <div class="stat-tile"><div class="stat-icon"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div class="stat-body"><div class="stat-label">Active Listings</div><div class="stat-value">{active_jobs}</div></div></div>
+  <div class="stat-tile"><div class="stat-icon"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg></div><div class="stat-body"><div class="stat-label">Total Applications</div><div class="stat-value">{total_apps}</div></div></div>
+  <div class="stat-tile"><div class="stat-icon"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M5 2h14M5 22h14M5 2a7 7 0 0 1 7 7M19 2a7 7 0 0 0-7 7M5 22a7 7 0 0 0 7-7M19 22a7 7 0 0 1-7-7"/></svg></div><div class="stat-body"><div class="stat-label">Pending Review</div><div class="stat-value">{pending}</div></div></div>
 </div>
 
 <!-- ══ TAB SWITCHER ══ -->
@@ -113,7 +113,7 @@ async def job_management(request: Request):
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;">
       <span class="card-title" id="jobModalTitle">Add New Job</span>
       <button onclick="closeJobModal()" style="background:var(--bg);border:1px solid var(--border);
-              border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--ink2);">✕</button>
+              border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--ink2);"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="form-grid">
       <div class="form-group full"><label class="form-label">Job Title *</label>
@@ -150,7 +150,7 @@ async def job_management(request: Request):
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;">
       <span class="card-title">Application Details</span>
       <button onclick="closeAppModal()" style="background:var(--bg);border:1px solid var(--border);
-              border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--ink2);">✕</button>
+              border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--ink2);"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div id="appModalContent"></div>
   </div>
@@ -332,8 +332,8 @@ function viewApplication(id) {{
           ${{a.cover_letter ? _dtrow('Cover Letter', `<div style="max-height:100px;overflow-y:auto;font-size:13px;color:var(--ink3);line-height:1.6;">${{escHtml(a.cover_letter)}}</div>`) : ''}}
         </table>
         <div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;">
-          <a href="/communications?app_id=${{id}}" class="btn btn-primary">✉️ Send Email</a>
-          <a href="/interviews?application=${{id}}" class="btn btn-outline">📅 Schedule Interview</a>
+          <a href="/communications?app_id=${{id}}" class="btn btn-primary"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Send Email</a>
+          <a href="/interviews?application=${{id}}" class="btn btn-outline"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Schedule Interview</a>
           <button class="btn btn-outline" onclick="closeAppModal()">Close</button>
         </div>`;
     }})
@@ -461,7 +461,7 @@ def _build_job_rows(jobs: list) -> str:
           <td style="white-space:nowrap;">{date}</td>
           <td>{_badge(bcls, blabel)}</td>
           <td><div class="action-grp">
-            <button class="btn btn-outline btn-sm" onclick="editJob({j.get('id',0)})">✏️ Edit</button>
+            <button class="btn btn-outline btn-sm" onclick="editJob({j.get('id',0)})"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit</button>
             <button class="btn btn-danger btn-sm" onclick="deleteJob({j.get('id',0)})">Delete</button>
           </div></td>
         </tr>"""
@@ -518,7 +518,7 @@ def _build_app_rows(applications: list) -> str:
           </td>
           <td><div class="action-grp">
             <button class="btn btn-outline btn-sm" onclick="viewApplication({aid})">View</button>
-            <button class="btn btn-success btn-sm" onclick="scheduleInterview({aid})">📅 Interview</button>
+            <button class="btn btn-success btn-sm" onclick="scheduleInterview({aid})"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Interview</button>
           </div></td>
         </tr>"""
     return rows

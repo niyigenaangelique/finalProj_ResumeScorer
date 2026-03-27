@@ -57,28 +57,28 @@ async def interview_scheduling(request: Request):
 <!-- ══ STAT TILES ══ -->
 <div class="stats-row" style="margin-bottom:24px;">
   <div class="stat-tile">
-    <div class="stat-icon">📅</div>
+    <div class="stat-icon"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
     <div class="stat-body">
       <div class="stat-label">Total Scheduled</div>
       <div class="stat-value">{total_iv}</div>
     </div>
   </div>
   <div class="stat-tile">
-    <div class="stat-icon">⏳</div>
+    <div class="stat-icon"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M5 2h14M5 22h14M5 2a7 7 0 0 1 7 7M19 2a7 7 0 0 0-7 7M5 22a7 7 0 0 0 7-7M19 22a7 7 0 0 1-7-7"/></svg></div>
     <div class="stat-body">
       <div class="stat-label">Upcoming</div>
       <div class="stat-value">{upcoming}</div>
     </div>
   </div>
   <div class="stat-tile">
-    <div class="stat-icon">✅</div>
+    <div class="stat-icon"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
     <div class="stat-body">
       <div class="stat-label">Completed</div>
       <div class="stat-value">{completed}</div>
     </div>
   </div>
   <div class="stat-tile">
-    <div class="stat-icon">❌</div>
+    <div class="stat-icon"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
     <div class="stat-body">
       <div class="stat-label">Cancelled</div>
       <div class="stat-value">{cancelled}</div>
@@ -125,10 +125,10 @@ async def interview_scheduling(request: Request):
           <div class="form-group">
             <label class="form-label">Interview Type *</label>
             <select class="form-ctrl" id="interviewType" name="interview_type" required>
-              <option value="phone">📞 Phone Screen</option>
-              <option value="technical">💻 Technical Interview</option>
-              <option value="behavioral">🧠 Behavioral Interview</option>
-              <option value="final">🏁 Final Interview</option>
+              <option value="phone">Phone Screen</option>
+              <option value="technical">Technical Interview</option>
+              <option value="behavioral">Behavioral Interview</option>
+              <option value="final">Final Interview</option>
             </select>
           </div>
         </div>
@@ -170,9 +170,9 @@ async def interview_scheduling(request: Request):
             <label class="form-label">Interview Mode *</label>
             <select class="form-ctrl" id="interviewMode" name="interview_mode" required
               onchange="updateLinkField()">
-              <option value="in-person">🏢 In-Person</option>
-              <option value="video">📹 Video Call</option>
-              <option value="phone">📞 Phone Call</option>
+              <option value="in-person">In-Person</option>
+              <option value="video">Video Call</option>
+              <option value="phone">Phone Call</option>
             </select>
           </div>
           <div class="form-group">
@@ -182,7 +182,7 @@ async def interview_scheduling(request: Request):
                 placeholder="Zoom link, Google Meet, or office location"
                 style="padding-left:34px;">
               <span id="linkIcon" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);
-                font-size:14px;pointer-events:none;">🏢</span>
+                font-size:14px;pointer-events:none;"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
             </div>
           </div>
         </div>
@@ -222,9 +222,9 @@ async def interview_scheduling(request: Request):
     <div class="card" style="animation:fadeUp 0.35s ease 0.08s both;">
       <div class="card-hd"><span class="card-title">Mode Guide</span></div>
       <div class="card-bd" style="display:flex;flex-direction:column;gap:10px;">
-        {_mode_tip("🏢", "In-Person", "Provide exact room/building. Confirm parking if needed.", "#E8F8F0", "var(--green)")}
-        {_mode_tip("📹", "Video Call", "Share Zoom/Meet link at least 1 hour before.", "var(--blue-lt)", "var(--blue)")}
-        {_mode_tip("📞", "Phone", "Confirm candidate has the right number.", "var(--amber-lt)", "#C67C00")}
+        {_mode_tip("", "In-Person", "Provide exact room/building. Confirm parking if needed.", "#E8F8F0", "var(--green)")}
+        {_mode_tip("", "Video Call", "Share Zoom/Meet link at least 1 hour before.", "var(--blue-lt)", "var(--blue)")}
+        {_mode_tip("", "Phone", "Confirm candidate has the right number.", "var(--amber-lt)", "#C67C00")}
       </div>
     </div>
 
@@ -290,9 +290,9 @@ async def interview_scheduling(request: Request):
               max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);position:relative;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
       <span style="font-family:'Sora',sans-serif;font-size:16px;font-weight:700;color:var(--ink);"
-        id="viewModalTitle">📅 Interview Details</span>
+        id="viewModalTitle"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Interview Details</span>
       <button onclick="closeModal()" style="background:var(--bg);border:1px solid var(--border);
-              border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--ink2);">✕</button>
+              border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--ink2);"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div id="viewModalContent"></div>
   </div>
@@ -415,15 +415,15 @@ function avatarGrad(name) {{
 
 // ── TYPE / MODE META ──────────────────────────────────
 const TYPE_META = {{
-  phone:      {{ cls:'chip-phone',      label:'Phone Screen',   icon:'📞' }},
-  technical:  {{ cls:'chip-technical',  label:'Technical',      icon:'💻' }},
-  behavioral: {{ cls:'chip-behavioral', label:'Behavioral',     icon:'🧠' }},
-  final:      {{ cls:'chip-final',      label:'Final Round',    icon:'🏁' }},
+  phone:      {{ cls:'chip-phone',      label:'Phone Screen',   icon:'<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.36 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.27 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8a16 16 0 0 0 7.92 7.92l1.35-1.35a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' }},
+  technical:  {{ cls:'chip-technical',  label:'Technical',      icon:'<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>' }},
+  behavioral: {{ cls:'chip-behavioral', label:'Behavioral',     icon:'<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 3a3 3 0 0 0-3 3 3 3 0 0 0-3 3 4 4 0 0 0 4 4h1v7h4v-7h1a4 4 0 0 0 4-4 3 3 0 0 0-3-3 3 3 0 0 0-3-3z"/></svg>' }},
+  final:      {{ cls:'chip-final',      label:'Final Round',    icon:'<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>' }},
 }};
 const MODE_META = {{
-  'in-person': {{ cls:'chip-in-person', label:'In-Person', icon:'🏢' }},
-  'video':     {{ cls:'chip-video',     label:'Video Call', icon:'📹' }},
-  'phone':     {{ cls:'chip-phone',     label:'Phone Call', icon:'📞' }},
+  'in-person': {{ cls:'chip-in-person', label:'In-Person', icon:'<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>' }},
+  'video':     {{ cls:'chip-video',     label:'Video Call', icon:'<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>' }},
+  'phone':     {{ cls:'chip-phone',     label:'Phone Call', icon:'<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.36 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.27 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8a16 16 0 0 0 7.92 7.92l1.35-1.35a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' }},
 }};
 const STATUS_META = {{
   upcoming:  {{ cls:'chip-upcoming',  label:'Upcoming'  }},
@@ -432,8 +432,8 @@ const STATUS_META = {{
   scheduled: {{ cls:'chip-scheduled', label:'Scheduled' }},
 }};
 
-function getType(t)   {{ return TYPE_META[t]   || {{ cls:'chip-neutral',  label:t||'—',   icon:'📅' }}; }}
-function getMode(m)   {{ return MODE_META[m]   || {{ cls:'chip-neutral',  label:m||'—',   icon:'📍' }}; }}
+function getType(t)   {{ return TYPE_META[t]   || {{ cls:'chip-neutral',  label:t||'—',   icon:'<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' }}; }}
+function getMode(m)   {{ return MODE_META[m]   || {{ cls:'chip-neutral',  label:m||'—',   icon:'<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>' }}; }}
 function getStatus(s) {{ return STATUS_META[(s||'').toLowerCase()] || {{ cls:'chip-neutral', label:s||'Scheduled' }}; }}
 
 // ── FORM HELPERS ───────────────────────────────────────
@@ -447,17 +447,17 @@ function updateLinkField() {{
   const label = document.getElementById('linkLabel');
   const input = document.getElementById('meetingLink');
   if (mode === 'video') {{
-    icon.textContent  = '📹';
+    icon.innerHTML  = '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>';
     label.textContent = 'Video Meeting Link *';
     input.placeholder = 'Zoom, Google Meet, or Teams link';
     input.required    = true;
   }} else if (mode === 'in-person') {{
-    icon.textContent  = '🏢';
+    icon.innerHTML  = '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';
     label.textContent = 'Office Location *';
     input.placeholder = 'Building, room number, or address';
     input.required    = true;
   }} else {{
-    icon.textContent  = '📞';
+    icon.innerHTML  = '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.36 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.27 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8a16 16 0 0 0 7.92 7.92l1.35-1.35a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
     label.textContent = 'Phone Number (optional)';
     input.placeholder = 'Dial-in number (optional)';
     input.required    = false;
@@ -566,10 +566,10 @@ function viewInterview(id) {{
         <div class="notes-box">${{escHtml(iv.notes)}}</div>` : ''}}
         <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;">
           <button class="btn btn-primary" onclick="closeModal();editInterview(${{iv.id}})">
-            ✏️ Edit
+            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit
           </button>
           ${{(iv.status||'').toLowerCase() !== 'cancelled'
-            ? `<button class="btn btn-danger" onclick="closeModal();cancelInterview(${{iv.id}})">❌ Cancel</button>`
+            ? `<button class="btn btn-danger" onclick="closeModal();cancelInterview(${{iv.id}})"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Cancel</button>`
             : ''}}
           <button class="btn btn-outline" onclick="closeModal()">Close</button>
         </div>`;
@@ -673,7 +673,7 @@ document.getElementById('interviewForm').addEventListener('submit', function(e) 
       : `<svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Schedule Interview`;
     if (d.success) {{
       showToast(
-        editId ? 'Interview Updated ✓' : 'Interview Scheduled ✓',
+        editId ? 'Interview Updated' : 'Interview Scheduled',
         editId ? 'Changes saved successfully.' : 'Invitation sent to candidate.',
         'success'
       );
@@ -738,15 +738,15 @@ def _av_grad(name: str) -> str:
 
 
 _TYPE_CHIP = {
-    "phone":      ("chip-phone",      "📞 Phone Screen"),
-    "technical":  ("chip-technical",  "💻 Technical"),
-    "behavioral": ("chip-behavioral", "🧠 Behavioral"),
-    "final":      ("chip-final",      "🏁 Final Round"),
+    "phone":      ("chip-phone",      "Phone Screen"),
+    "technical":  ("chip-technical",  "Technical"),
+    "behavioral": ("chip-behavioral", "Behavioral"),
+    "final":      ("chip-final",      "Final Round"),
 }
 _MODE_CHIP = {
-    "in-person":  ("chip-in-person", "🏢 In-Person"),
-    "video":      ("chip-video",     "📹 Video Call"),
-    "phone":      ("chip-phone",     "📞 Phone Call"),
+    "in-person":  ("chip-in-person", "In-Person"),
+    "video":      ("chip-video",     "Video Call"),
+    "phone":      ("chip-phone",     "Phone Call"),
 }
 _STATUS_CHIP = {
     "upcoming":   ("chip-upcoming",  "Upcoming"),
@@ -763,7 +763,7 @@ def _chip(val: str, lookup: dict) -> str:
 def _build_interview_cards(interviews: list) -> str:
     if not interviews:
         return """<div style="text-align:center;padding:48px 24px;">
-  <div style="font-size:40px;margin-bottom:10px;">📅</div>
+  <div style="margin-bottom:12px;"><svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
   <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:14px;color:var(--ink2);">No interviews yet</div>
   <div style="font-size:12.5px;color:var(--ink3);margin-top:4px;">Use the form above to schedule your first interview.</div>
 </div>"""
@@ -791,7 +791,7 @@ def _build_interview_cards(interviews: list) -> str:
 
         link_chip = (
             f'<a href="{link}" target="_blank" class="chip chip-video" '
-            f'style="text-decoration:none;">🔗 Join</a>'
+            f'style="text-decoration:none;"><svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Join</a>'
             if link else ""
         )
 
@@ -800,7 +800,7 @@ def _build_interview_cards(interviews: list) -> str:
   <div class="iv-avatar" style="background:{_av_grad(name)};">{name[0].upper()}</div>
   <div class="iv-body">
     <div class="iv-name">{name}</div>
-    <div class="iv-role">{job} · 👤 {interviewer}</div>
+    <div class="iv-role">{job} · <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> {interviewer}</div>
     <div class="iv-chips">
       <span class="chip {type_cls}">{type_lbl}</span>
       <span class="chip {mode_cls}">{mode_lbl}</span>
@@ -811,8 +811,8 @@ def _build_interview_cards(interviews: list) -> str:
         </svg>
         {date}
       </span>
-      <span class="chip chip-neutral">⏰ {time}</span>
-      <span class="chip chip-neutral">⏱ {dur}min</span>
+      <span class="chip chip-neutral"><svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> {time}</span>
+      <span class="chip chip-neutral"><svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> {dur}min</span>
       <span class="chip {status_cls}">{status_lbl}</span>
       {link_chip}
     </div>
@@ -825,9 +825,9 @@ def _build_interview_cards(interviews: list) -> str:
       View
     </button>
     <button class="btn btn-outline btn-sm" onclick="editInterview({ivid})" {"disabled" if status=="cancelled" else ""}>
-      ✏️ Edit
+      <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit
     </button>
-    {"" if status=="cancelled" else f'<button class="btn btn-danger btn-sm" onclick="cancelInterview({ivid})">❌</button>'}
+    {"" if status=="cancelled" else f'<button class="btn btn-danger btn-sm" onclick="cancelInterview({ivid})"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></button>'}
   </div>
 </div>"""
 

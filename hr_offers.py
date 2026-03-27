@@ -9,11 +9,11 @@ db = ResumeDatabase()
 
 # status meta
 _STATUS = {
-    "pending":   ("badge-amber",   "⏳ Pending"),
-    "sent":      ("badge-blue",    "📤 Sent"),
-    "accepted":  ("badge-green",   "✅ Accepted"),
-    "rejected":  ("badge-red",     "❌ Rejected"),
-    "withdrawn": ("badge-neutral", "↩ Withdrawn"),
+    "pending":   ("badge-amber",   "Pending"),
+    "sent":      ("badge-blue",    "Sent"),
+    "accepted":  ("badge-green",   "Accepted"),
+    "rejected":  ("badge-red",     "Rejected"),
+    "withdrawn": ("badge-neutral", "Withdrawn"),
 }
 _BADGE_CSS = {
     "badge-amber":   "background:var(--amber-lt);color:#C67C00;",
@@ -66,8 +66,8 @@ async def offer_management(request: Request):
     <div class="page-sub">Create, send, and track job offers for shortlisted candidates.</div>
   </div>
   <button class="btn btn-primary" onclick="scrollToForm()">
-    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    <svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2.5'>
+      <line x1='12' y1='5' x2='12' y2='19'/><line x1='5' y1='12' x2='19' y2='12'/>
     </svg>
     Create Offer
   </button>
@@ -75,10 +75,10 @@ async def offer_management(request: Request):
 
 <!-- ══ STATS ══ -->
 <div class="stats-row" style="margin-bottom:24px;">
-  <div class="stat-tile"><div class="stat-icon">📝</div><div class="stat-body"><div class="stat-label">Total Offers</div><div class="stat-value">{total_offers}</div></div></div>
-  <div class="stat-tile"><div class="stat-icon">⏳</div><div class="stat-body"><div class="stat-label">Active / Sent</div><div class="stat-value">{pending_cnt}</div></div></div>
-  <div class="stat-tile"><div class="stat-icon">✅</div><div class="stat-body"><div class="stat-label">Accepted</div><div class="stat-value">{accepted_cnt}</div></div></div>
-  <div class="stat-tile"><div class="stat-icon">❌</div><div class="stat-body"><div class="stat-label">Rejected</div><div class="stat-value">{rejected_cnt}</div></div></div>
+  <div class="stat-tile"><div class="stat-icon"><svg width='22' height='22' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='1.8'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/><line x1='16' y1='13' x2='8' y2='13'/><line x1='16' y1='17' x2='8' y2='17'/></svg></div><div class="stat-body"><div class="stat-label">Total Offers</div><div class="stat-value">{total_offers}</div></div></div>
+  <div class="stat-tile"><div class="stat-icon"><svg width='22' height='22' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='1.8'><path d='M5 2h14M5 22h14M5 2a7 7 0 0 1 7 7M19 2a7 7 0 0 0-7 7M5 22a7 7 0 0 0 7-7M19 22a7 7 0 0 1-7-7'/></svg></div><div class="stat-body"><div class="stat-label">Active / Sent</div><div class="stat-value">{pending_cnt}</div></div></div>
+  <div class="stat-tile"><div class="stat-icon"><svg width='22' height='22' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='1.8'><path d='M22 11.08V12a10 10 0 1 1-5.93-9.14'/><polyline points='22 4 12 14.01 9 11.01'/></svg></div><div class="stat-body"><div class="stat-label">Accepted</div><div class="stat-value">{accepted_cnt}</div></div></div>
+  <div class="stat-tile"><div class="stat-icon"><svg width='22' height='22' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='1.8'><circle cx='12' cy='12' r='10'/><line x1='15' y1='9' x2='9' y2='15'/><line x1='9' y1='9' x2='15' y2='15'/></svg></div><div class="stat-body"><div class="stat-label">Rejected</div><div class="stat-value">{rejected_cnt}</div></div></div>
 </div>
 
 <!-- ══ TWO-COLUMN ══ -->
@@ -88,10 +88,10 @@ async def offer_management(request: Request):
   <div class="card" id="offerForm" style="animation:fadeUp 0.3s ease both;">
     <div class="card-hd">
       <span class="card-title">
-        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
-          style="vertical-align:-2px;margin-right:6px;">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
+        <svg width='14' height='14' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'
+          style='vertical-align:-2px;margin-right:6px;'>
+          <path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/>
+          <polyline points='14 2 14 8 20 8'/>
         </svg>
         Create Offer Letter
       </span>
@@ -179,18 +179,18 @@ async def offer_management(request: Request):
       <!-- Actions -->
       <div style="display:flex;gap:10px;flex-wrap:wrap;padding-top:18px;border-top:1px solid var(--border);">
         <button class="btn btn-primary" id="createBtn" onclick="submitOffer()">
-          <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'>
+            <path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/>
           </svg>
           <span id="createBtnLabel">Create Offer</span>
         </button>
         <button class="btn btn-outline" onclick="openPreview()">
-          <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+          <svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'>
+            <path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/>
           </svg>
           Preview Letter
         </button>
-        <button class="btn btn-outline" onclick="saveDraft()">💾 Save Draft</button>
+        <button class="btn btn-outline" onclick="saveDraft()"><svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z'/><polyline points='17 21 17 13 7 13 7 21'/><polyline points='7 3 7 8 15 8'/></svg> Save Draft</button>
       </div>
     </div>
   </div>
@@ -203,11 +203,11 @@ async def offer_management(request: Request):
       <div class="card-hd"><span class="card-title">Acceptance Rate</span></div>
       <div class="card-bd" style="text-align:center;padding:20px 12px;">
         <div style="position:relative;width:100px;height:100px;margin:0 auto 12px;">
-          <svg viewBox="0 0 36 36" style="transform:rotate(-90deg);width:100px;height:100px;">
-            <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--border)" stroke-width="3"/>
-            <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--green)" stroke-width="3"
-              stroke-dasharray="{int((accepted_cnt/max(total_offers,1))*100)} 100"
-              stroke-linecap="round"/>
+          <svg viewBox='0 0 36 36' style='transform:rotate(-90deg);width:100px;height:100px;'>
+            <circle cx='18' cy='18' r='15.9' fill='none' stroke='var(--border)' stroke-width='3'/>
+            <circle cx='18' cy='18' r='15.9' fill='none' stroke='var(--green)' stroke-width='3'
+              stroke-dasharray='{int((accepted_cnt/max(total_offers,1))*100)} 100'
+              stroke-linecap='round'/>
           </svg>
           <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
             <span style="font-family:'Sora',sans-serif;font-size:20px;font-weight:800;color:var(--ink);">
@@ -223,10 +223,10 @@ async def offer_management(request: Request):
     <div class="card" style="animation:fadeUp 0.3s ease 0.14s both;">
       <div class="card-hd"><span class="card-title">Offer Tips</span></div>
       <div class="card-bd" style="display:flex;flex-direction:column;gap:10px;">
-        {_offer_tip("💰","Be competitive","Research market rates. Salary is the #1 reason offers are rejected.")}
-        {_offer_tip("⚡","Move fast","Top candidates receive multiple offers — send within 48 hours.")}
-        {_offer_tip("📅","Set a deadline","A clear response deadline creates urgency and signals respect.")}
-        {_offer_tip("📞","Follow up","Send a personal call to discuss the offer before the deadline.")}
+        {_offer_tip("<svg width='16' height='16' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='12' y1='1' x2='12' y2='23'/><path d='M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'/></svg>","Be competitive","Research market rates. Salary is the #1 reason offers are rejected.")}
+        {_offer_tip("<svg width='16' height='16' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><polygon points='13 2 3 14 12 14 11 22 21 10 12 10 13 2'/></svg>","Move fast","Top candidates receive multiple offers — send within 48 hours.")}
+        {_offer_tip("<svg width='14' height='14' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><rect x='3' y='4' width='18' height='18' rx='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>","Set a deadline","A clear response deadline creates urgency and signals respect.")}
+        {_offer_tip("<svg width='16' height='16' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path d='M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.36 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.27 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8a16 16 0 0 0 7.92 7.92l1.35-1.35a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z'/></svg>","Follow up","Send a personal call to discuss the offer before the deadline.")}
       </div>
     </div>
 
@@ -249,8 +249,8 @@ async def offer_management(request: Request):
   <div class="card-hd">
     <span class="card-title">Offer History</span>
     <button class="btn btn-outline" style="padding:5px 12px;font-size:12px;" onclick="loadOfferHistory()">
-      <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.94"/>
+      <svg width='11' height='11' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'>
+        <polyline points='1 4 1 10 7 10'/><path d='M3.51 15a9 9 0 1 0 .49-4.94'/>
       </svg>
       Refresh
     </button>
@@ -269,9 +269,9 @@ async def offer_management(request: Request):
   <div style="background:var(--white);border-radius:16px;padding:32px;max-width:680px;width:90%;
               max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);position:relative;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
-      <span style="font-family:'Sora',sans-serif;font-weight:700;font-size:16px;color:var(--ink);">📄 Offer Letter Preview</span>
+      <span style="font-family:'Sora',sans-serif;font-weight:700;font-size:16px;color:var(--ink);"><svg width='14' height='14' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><rect x='2' y='7' width='20' height='14' rx='2'/><path d='M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2'/></svg> Offer Letter Preview</span>
       <button onclick="closePreview()" style="background:var(--bg);border:1px solid var(--border);
-              border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--ink2);">✕</button>
+              border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--ink2);"><svg width='14' height='14' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='18' y1='6' x2='6' y2='18'/><line x1='6' y1='6' x2='18' y2='18'/></svg></button>
     </div>
     <div id="previewContent"></div>
   </div>
@@ -283,9 +283,9 @@ async def offer_management(request: Request):
   <div style="background:var(--white);border-radius:16px;padding:32px;max-width:580px;width:90%;
               max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);position:relative;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;">
-      <span style="font-family:'Sora',sans-serif;font-weight:700;font-size:16px;color:var(--ink);">📝 Offer Details</span>
+      <span style="font-family:'Sora',sans-serif;font-weight:700;font-size:16px;color:var(--ink);"><svg width='14' height='14' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><rect x='2' y='7' width='20' height='14' rx='2'/><path d='M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2'/></svg> Offer Details</span>
       <button onclick="closeViewOffer()" style="background:var(--bg);border:1px solid var(--border);
-              border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--ink2);">✕</button>
+              border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--ink2);"><svg width='14' height='14' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='18' y1='6' x2='6' y2='18'/><line x1='6' y1='6' x2='18' y2='18'/></svg></button>
     </div>
     <div id="viewOfferContent"></div>
   </div>
@@ -484,7 +484,7 @@ function submitOffer() {{
   .then(d=>{{
     btn.disabled=false; lbl.textContent='Create Offer';
     if (d.success) {{
-      showToast('Offer Created ✓','Offer letter generated successfully.','success');
+      showToast('Offer Created','Offer letter generated successfully.','success');
       clearForm();
       localStorage.removeItem('offerDraft');
       setTimeout(()=>location.reload(), 1300);
@@ -506,11 +506,11 @@ function viewOffer(id) {{
       const o = d.offer;
       const s = (o.status||'pending').toLowerCase();
       const statusMeta = {{
-        pending:  ['var(--amber-lt)','#C67C00','⏳ Pending'],
-        sent:     ['var(--blue-lt)','var(--blue)','📤 Sent'],
-        accepted: ['#E8F8F0','var(--green)','✅ Accepted'],
-        rejected: ['var(--red-lt)','var(--red)','❌ Rejected'],
-        withdrawn:['var(--bg)','var(--ink3)','↩ Withdrawn'],
+        pending:  ['var(--amber-lt)','#C67C00','Pending'],
+        sent:     ['var(--blue-lt)','var(--blue)','Sent'],
+        accepted: ['#E8F8F0','var(--green)','Accepted'],
+        rejected: ['var(--red-lt)','var(--red)','Rejected'],
+        withdrawn:['var(--bg)','var(--ink3)','Withdrawn'],
       }};
       const [sbg,scol,slbl] = statusMeta[s]||['var(--bg)','var(--ink3)',s];
       document.getElementById('viewOfferContent').innerHTML = `
@@ -539,8 +539,8 @@ function viewOffer(id) {{
         </table>
         ${{o.benefits?`<div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink3);margin-bottom:6px;">Benefits</div><div class="od-notes">${{escHtml(o.benefits)}}</div>`:''}}
         <div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;">
-          ${{s==='pending'?`<button class="btn btn-primary" onclick="closeViewOffer();sendOffer(${{id}})">📤 Send Offer</button>`
-            : s==='sent'?`<button class="btn btn-danger" onclick="closeViewOffer();withdrawOffer(${{id}})">↩ Withdraw</button>`:''}}
+          ${{s==='pending'?`<button class="btn btn-primary" onclick="closeViewOffer();sendOffer(${{id}})"><svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='22' y1='2' x2='11' y2='13'/><polygon points='22 2 15 22 11 13 2 9 22 2'/></svg> Send Offer</button>`
+            : s==='sent'?`<button class="btn btn-danger" onclick="closeViewOffer();withdrawOffer(${{id}})"><svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><polyline points='9 14 4 9 9 4'/><path d='M20 20v-7a4 4 0 0 0-4-4H4'/></svg> Withdraw</button>`:''}}
           <button class="btn btn-outline" onclick="closeViewOffer()">Close</button>
         </div>`;
     }})
@@ -553,7 +553,7 @@ function sendOffer(id) {{
   if (!confirm('Send this offer to the candidate now?')) return;
   fetch('/api/send-offer/'+id, {{method:'POST'}})
     .then(r=>r.json())
-    .then(d=>{{ if(d.success){{ showToast('Offer Sent ✓','Email dispatched to candidate.','success'); setTimeout(()=>location.reload(),1200); }}
+    .then(d=>{{ if(d.success){{ showToast('Offer Sent','Email dispatched to candidate.','success'); setTimeout(()=>location.reload(),1200); }}
       else showToast('Error', d.error||'Failed.','error'); }})
     .catch(()=>showToast('Error','Network error.','error'));
 }}
@@ -583,18 +583,18 @@ function loadOfferHistory() {{
     .then(d=>{{
       if (!d.success||!d.offers.length) {{
         div.innerHTML = `<div style="text-align:center;padding:40px;color:var(--ink3);">
-          <div style="font-size:36px;margin-bottom:10px;">📝</div>
+          <div style="margin-bottom:12px;"><svg width='20' height='20' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='1.8'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/><line x1='16' y1='13' x2='8' y2='13'/><line x1='16' y1='17' x2='8' y2='17'/></svg></div>
           <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:14px;color:var(--ink2);">No offer history yet</div>
         </div>`; return;
       }}
       div.innerHTML = d.offers.map((o,i) => {{
         const s = (o.status||'pending').toLowerCase();
         const statusMeta = {{
-          pending:  ['var(--amber-lt)','#C67C00','⏳ Pending'],
-          sent:     ['var(--blue-lt)','var(--blue)','📤 Sent'],
-          accepted: ['#E8F8F0','var(--green)','✅ Accepted'],
-          rejected: ['var(--red-lt)','var(--red)','❌ Rejected'],
-          withdrawn:['var(--bg)','var(--ink3)','↩ Withdrawn'],
+          pending:  ['var(--amber-lt)','#C67C00','Pending'],
+          sent:     ['var(--blue-lt)','var(--blue)','Sent'],
+          accepted: ['#E8F8F0','var(--green)','Accepted'],
+          rejected: ['var(--red-lt)','var(--red)','Rejected'],
+          withdrawn:['var(--bg)','var(--ink3)','Withdrawn'],
         }};
         const [sbg,scol,slbl] = statusMeta[s]||['var(--bg)','var(--ink3)',s];
         return `<div class="offer-card" style="animation-delay:${{i*0.04}}s;">
@@ -602,9 +602,9 @@ function loadOfferHistory() {{
           <div class="offer-body">
             <div class="offer-name">${{escHtml(o.applicant_name||'N/A')}} — ${{escHtml(o.position_title||'N/A')}}</div>
             <div class="offer-meta">
-              <span>💰 ${{escHtml(o.salary||'—')}}</span>
-              <span>🏢 ${{escHtml(o.department||'—')}}</span>
-              <span>📅 ${{escHtml(o.start_date||'—')}}</span>
+              <span><svg width='11' height='11' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='12' y1='1' x2='12' y2='23'/><path d='M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'/></svg> ${{escHtml(o.salary||'—')}}</span>
+              <span><svg width='11' height='11' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path d='M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/><polyline points='9 22 9 12 15 12 15 22'/></svg> ${{escHtml(o.department||'—')}}</span>
+              <span><svg width='11' height='11' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><rect x='3' y='4' width='18' height='18' rx='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg> ${{escHtml(o.start_date||'—')}}</span>
               <span style="display:inline-flex;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700;background:${{sbg}};color:${{scol}};">${{slbl}}</span>
             </div>
           </div>
@@ -661,7 +661,7 @@ def _offer_tip(icon: str, title: str, desc: str) -> str:
 
 def _empty_offers(title: str, desc: str) -> str:
     return f"""<div style="text-align:center;padding:40px 24px;color:var(--ink3);">
-  <div style="font-size:40px;margin-bottom:10px;">📝</div>
+  <div style="margin-bottom:12px;"><svg width='20' height='20' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='1.8'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/><line x1='16' y1='13' x2='8' y2='13'/><line x1='16' y1='17' x2='8' y2='17'/></svg></div>
   <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:14px;color:var(--ink2);">{title}</div>
   <div style="font-size:12.5px;margin-top:4px;">{desc}</div>
 </div>"""
@@ -692,15 +692,15 @@ def _build_offer_cards(offers: list) -> str:
   <div class="offer-body">
     <div class="offer-name">{name} — {o.get('position_title','—')}</div>
     <div class="offer-meta">
-      <span>💰 {o.get('salary','—')}</span>
-      <span>📅 Start: {o.get('start_date','—')}</span>
-      <span>📋 {(o.get('offer_type') or '').replace('-',' ').title()}</span>
+      <span><svg width='11' height='11' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='12' y1='1' x2='12' y2='23'/><path d='M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'/></svg> {o.get('salary','—')}</span>
+      <span><svg width='11' height='11' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><rect x='3' y='4' width='18' height='18' rx='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg> Start: {o.get('start_date','—')}</span>
+      <span><svg width='11' height='11' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path d='M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2'/><rect x='9' y='3' width='6' height='4' rx='1'/></svg> {(o.get('offer_type') or '').replace('-',' ').title()}</span>
       <span style="display:inline-flex;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700;{css}">{lbl}</span>
     </div>
   </div>
   <div class="offer-actions">
     <button class="btn btn-outline btn-sm" onclick="viewOffer({o.get('id',0)})">View</button>
-    {"<button class='btn btn-primary btn-sm' onclick='sendOffer(" + str(o.get('id',0)) + ")'>📤 Send</button>" if status=="pending" else ""}
+    {"<button class='btn btn-primary btn-sm' onclick='sendOffer(" + str(o.get('id',0)) + ")'><svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='22' y1='2' x2='11' y2='13'/><polygon points='22 2 15 22 11 13 2 9 22 2'/></svg> Send</button>" if status=="pending" else ""}
     {"<button class='btn btn-warn btn-sm' onclick='withdrawOffer(" + str(o.get('id',0)) + ")'>Withdraw</button>" if status=="sent" else ""}
     <button class="btn btn-danger btn-sm" onclick="deleteOffer({o.get('id',0)})">Delete</button>
   </div>
