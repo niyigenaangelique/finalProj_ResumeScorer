@@ -111,16 +111,19 @@ class ResumeDatabase:
             CREATE TABLE IF NOT EXISTS evaluations (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 application_id INTEGER,
+                evaluator_id INTEGER,
+                technical_score REAL,
+                communication_score REAL,
+                experience_score REAL,
+                culture_score REAL,
+                overall_score REAL,
+                feedback TEXT,
+                evaluation_date TEXT DEFAULT CURRENT_TIMESTAMP,
                 interviewer_name TEXT,
-                technical_score INTEGER,
-                communication_score INTEGER,
-                experience_score INTEGER,
-                overall_score INTEGER,
                 strengths TEXT,
                 weaknesses TEXT,
                 comments TEXT,
                 recommendation TEXT,
-                evaluation_date TEXT DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (application_id) REFERENCES job_applications (id)
             )
         ''')
@@ -786,6 +789,7 @@ class ResumeDatabase:
             evaluations.append(evaluation)
         
         return evaluations
+        
     
     # Communication methods
     def add_communication(self, application_id: int, sender_type: str, recipient_email: str,
@@ -1554,6 +1558,145 @@ class ResumeDatabase:
         conn.close()
         
         return success
+    
+    # HR Evaluation Portal Methods
+    def get_applicants_for_evaluation(self) -> List[Dict]:
+        """Get applicants who have submitted applications and need evaluation"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT DISTINCT
+                a.id as applicant_id,
+                a.name,
+                a.email,
+                a.phone,
+                a.position,
+                ja.id as application_id,
+                ja.application_date,
+                ja.status,
+                j.title as job_title,
+                j.department,
+                j.location,
+                rs.score as resume_score,
+                rs.features as resume_features,
+                rs.recommendations as resume_recommendations
+            FROM applicants a
+            JOIN job_applications ja ON a.id = ja.applicant_id
+            JOIN jobs j ON ja.job_id = j.id
+            LEFT JOIN resume_scores rs ON a.id = rs.applicant_id
+            WHERE ja.status IN ('reviewed', 'shortlisted', 'evaluated')
+            ORDER BY ja.application_date DESC
+        ''')
+        
+        results = cursor.fetchall()
+        columns = [desc[0] for desc in cursor.description]
+        
+        applicants = []
+        for result in results:
+            app_dict = dict(zip(columns, result))
+            # Parse resume features if available
+            if app_dict.get('resume_features'):
+                try:
+                    app_dict['resume_features'] = json.loads(app_dict['resume_features'])
+                except:
+                    app_dict['resume_features'] = {}
+            applicants.append(app_dict)
+        
+        conn.close()
+        return applicants
+    
+    def save_evaluation(self, application_id: int, evaluator_id: int, 
+                       scores: Dict, feedback: str, overall_score: float) -> bool:
+        """Save evaluation for an applicant"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            # Check if evaluation already exists
+            cursor.execute('''
+                SELECT id FROM evaluations WHERE application_id = ?
+            ''', (application_id,))
+            
+            existing = cursor.fetchone()
+            
+            if existing:
+                # Update existing evaluation
+                cursor.execute('''
+                    UPDATE evaluations SET
+                        evaluator_id = ?,
+                        technical_score = ?,
+                        experience_score = ?,
+                        communication_score = ?,
+                        culture_score = ?,
+                        overall_score = ?,
+                        feedback = ?,
+                        evaluation_date = ?
+                    WHERE application_id = ?
+                ''', (
+                    evaluator_id,
+                    scores.get('technical', 0),
+                    scores.get('experience', 0),
+                    scores.get('communication', 0),
+                    scores.get('culture', 0),
+                    overall_score,
+                    feedback,
+                    datetime.now().isoformat(),
+                    application_id
+                ))
+            else:
+                # Insert new evaluation
+                cursor.execute('''
+                    INSERT INTO evaluations (
+                        application_id, evaluator_id, technical_score, experience_score,
+                        communication_score, culture_score, overall_score, feedback, evaluation_date
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    application_id, evaluator_id,
+                    scores.get('technical', 0),
+                    scores.get('experience', 0),
+                    scores.get('communication', 0),
+                    scores.get('culture', 0),
+                    overall_score, feedback, datetime.now().isoformat()
+                ))
+            
+            # Update application status to 'evaluated'
+            cursor.execute('''
+                UPDATE job_applications SET status = 'evaluated' WHERE id = ?
+            ''', (application_id,))
+            
+            conn.commit()
+            return True
+            
+        except Exception as e:
+            conn.rollback()
+            print(f"Error saving evaluation: {e}")
+            return False
+        finally:
+            conn.close()
+    
+    def get_evaluation_by_application(self, application_id: int) -> Optional[Dict]:
+        """Get existing evaluation for an application"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT e.*, 
+                   CASE WHEN e.evaluator_id IS NOT NULL 
+                        THEN (SELECT name FROM users WHERE id = e.evaluator_id LIMIT 1)
+                        ELSE e.interviewer_name 
+                   END as evaluator_name
+            FROM evaluations e
+            WHERE e.application_id = ?
+        ''', (application_id,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result:
+            columns = [desc[0] for desc in cursor.description]
+            return dict(zip(columns, result))
+        return None
 
 # Initialize database
 db = ResumeDatabase()

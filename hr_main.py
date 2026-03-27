@@ -4,9 +4,10 @@ This is the main entry point that imports and combines all HR functionality
 """
 
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from database import ResumeDatabase
 import os
+import sqlite3
 
 # Import all HR modules
 from hr_base import app, get_current_user, get_base_html, get_end_html, send_email
@@ -17,6 +18,7 @@ from hr_communications import *
 from hr_offers import *
 from hr_reports import *
 from hr_post_job import *
+from hr_evaluation import *
 
 # Initialize database
 db = ResumeDatabase()
@@ -99,6 +101,7 @@ if __name__ == "__main__":
     print("  • Communications: http://localhost:8003/communications")
     print("  • Offer Management: http://localhost:8003/offers")
     print("  • Reports: http://localhost:8003/reports")
+    print("  • Evaluations: http://localhost:8003/evaluations")
     print("  • Post Job: http://localhost:8003/post-job")
     print("================================")
     print("Demo Credentials:")
@@ -107,3 +110,4 @@ if __name__ == "__main__":
     print("================================")
     
     uvicorn.run(app, host="0.0.0.0", port=8003)
+    
