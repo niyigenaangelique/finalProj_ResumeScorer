@@ -353,6 +353,64 @@ class ResumeDatabase:
         
         return job_id
     
+    def create_job(self, title: str, department: str, employment_type: str = None, 
+                   experience_level: str = None, location: str = None, work_mode: str = None,
+                   salary_min: str = None, salary_max: str = None, job_description: str = None, 
+                   requirements: str = None, nice_to_have: str = None, benefits: str = None,
+                   application_deadline: str = None, hiring_manager: str = None, 
+                   team_size: int = None, featured_job: bool = False, urgent_hiring: bool = False) -> int:
+        """Create a new job with extended fields"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Check if jobs table has the new columns, add them if not
+        cursor.execute("PRAGMA table_info(jobs)")
+        columns = [row[1] for row in cursor.fetchall()]
+        
+        new_columns = []
+        if 'employment_type' not in columns:
+            new_columns.append("ALTER TABLE jobs ADD COLUMN employment_type TEXT")
+        if 'experience_level' not in columns:
+            new_columns.append("ALTER TABLE jobs ADD COLUMN experience_level TEXT")
+        if 'work_mode' not in columns:
+            new_columns.append("ALTER TABLE jobs ADD COLUMN work_mode TEXT")
+        if 'salary_min' not in columns:
+            new_columns.append("ALTER TABLE jobs ADD COLUMN salary_min TEXT")
+        if 'salary_max' not in columns:
+            new_columns.append("ALTER TABLE jobs ADD COLUMN salary_max TEXT")
+        if 'featured_job' not in columns:
+            new_columns.append("ALTER TABLE jobs ADD COLUMN featured_job BOOLEAN DEFAULT 0")
+        if 'urgent_hiring' not in columns:
+            new_columns.append("ALTER TABLE jobs ADD COLUMN urgent_hiring BOOLEAN DEFAULT 0")
+        if 'application_deadline' not in columns:
+            new_columns.append("ALTER TABLE jobs ADD COLUMN application_deadline TEXT")
+        if 'hiring_manager' not in columns:
+            new_columns.append("ALTER TABLE jobs ADD COLUMN hiring_manager TEXT")
+        if 'team_size' not in columns:
+            new_columns.append("ALTER TABLE jobs ADD COLUMN team_size INTEGER")
+        
+        for alter_sql in new_columns:
+            cursor.execute(alter_sql)
+        
+        # Insert the job with all fields
+        cursor.execute('''
+            INSERT INTO jobs 
+            (title, department, location, salary, description, requirements, 
+             employment_type, experience_level, work_mode, salary_min, salary_max,
+             featured_job, urgent_hiring, application_deadline, hiring_manager, team_size)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (title, department, location, 
+              f"{salary_min or ''} - {salary_max or ''}" if salary_min or salary_max else None,
+              job_description, requirements, employment_type, experience_level, work_mode,
+              salary_min, salary_max, featured_job, urgent_hiring, application_deadline, 
+              hiring_manager, team_size))
+        
+        job_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return job_id
+    
     def get_all_jobs(self) -> List[Dict]:
         """Get all active jobs"""
         conn = sqlite3.connect(self.db_path)
@@ -1336,6 +1394,160 @@ class ResumeDatabase:
         cursor = conn.cursor()
         
         cursor.execute('UPDATE job_offers SET status = ? WHERE id = ?', (status, offer_id))
+        
+        success = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        
+        return success
+    
+    # Report methods
+    def save_report(self, report_type: str, report_data: Dict, format: str, generated_by: str,
+                   start_date: str = None, end_date: str = None, department_filter: str = None) -> str:
+        """Save a generated report"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Create reports table if it doesn't exist
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS reports (
+                id TEXT PRIMARY KEY,
+                report_type TEXT,
+                report_data TEXT,
+                format TEXT,
+                generated_by TEXT,
+                start_date TEXT,
+                end_date TEXT,
+                department_filter TEXT,
+                generated_date TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        import uuid
+        report_id = str(uuid.uuid4())
+        
+        cursor.execute('''
+            INSERT INTO reports 
+            (id, report_type, report_data, format, generated_by, start_date, end_date, department_filter)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (report_id, report_type, json.dumps(report_data), format, generated_by, 
+              start_date, end_date, department_filter))
+        
+        conn.commit()
+        conn.close()
+        
+        return report_id
+    
+    def get_report(self, report_id: str) -> Optional[Dict]:
+        """Get a specific report"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM reports WHERE id = ?', (report_id,))
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result:
+            columns = ['id', 'report_type', 'report_data', 'format', 'generated_by', 
+                      'start_date', 'end_date', 'department_filter', 'generated_date']
+            report = dict(zip(columns, result))
+            
+            # Parse JSON data
+            if report['report_data']:
+                report['report_data'] = json.loads(report['report_data'])
+            
+            return report
+        
+        return None
+    
+    def get_recent_reports(self, limit: int = 10) -> List[Dict]:
+        """Get recent reports"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT id, report_type, format, generated_date, start_date, end_date
+            FROM reports 
+            ORDER BY generated_date DESC 
+            LIMIT ?
+        ''', (limit,))
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        columns = ['id', 'report_type', 'format', 'generated_date', 'start_date', 'end_date']
+        reports = []
+        
+        for result in results:
+            report = dict(zip(columns, result))
+            reports.append(report)
+        
+        return reports
+    
+    def create_scheduled_report(self, name: str, report_type: str, frequency: str, 
+                               email_recipients: str, created_by: str) -> str:
+        """Create a scheduled report"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Create scheduled_reports table if it doesn't exist
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS scheduled_reports (
+                id TEXT PRIMARY KEY,
+                name TEXT,
+                report_type TEXT,
+                frequency TEXT,
+                email_recipients TEXT,
+                created_by TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                next_run TEXT
+            )
+        ''')
+        
+        import uuid
+        schedule_id = str(uuid.uuid4())
+        
+        cursor.execute('''
+            INSERT INTO scheduled_reports 
+            (id, name, report_type, frequency, email_recipients, created_by)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (schedule_id, name, report_type, frequency, email_recipients, created_by))
+        
+        conn.commit()
+        conn.close()
+        
+        return schedule_id
+    
+    def get_scheduled_reports(self) -> List[Dict]:
+        """Get all scheduled reports"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT id, name, report_type, frequency, email_recipients, created_at, next_run
+            FROM scheduled_reports 
+            ORDER BY created_at DESC
+        ''')
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        columns = ['id', 'name', 'report_type', 'frequency', 'email_recipients', 
+                  'created_at', 'next_run']
+        reports = []
+        
+        for result in results:
+            report = dict(zip(columns, result))
+            reports.append(report)
+        
+        return reports
+    
+    def delete_scheduled_report(self, schedule_id: str) -> bool:
+        """Delete a scheduled report"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('DELETE FROM scheduled_reports WHERE id = ?', (schedule_id,))
         
         success = cursor.rowcount > 0
         conn.commit()

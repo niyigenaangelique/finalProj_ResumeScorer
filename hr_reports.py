@@ -1,10 +1,16 @@
 from fastapi import FastAPI, Request, HTTPException, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from database import ResumeDatabase
 from hr_base import app, get_current_user, get_base_html, get_end_html, send_email
 from datetime import datetime, timedelta
 import os
 import json
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from io import BytesIO
 
 db = ResumeDatabase()
 
@@ -85,6 +91,7 @@ async def reports_page(request: Request):
             <label class="form-label">Format</label>
             <select class="form-ctrl" id="reportFormat">
               <option value="html">HTML — View in browser</option>
+              <option value="pdf">PDF — Download</option>
               <option value="text">Plain Text — Download</option>
               <option value="json">JSON — Download</option>
             </select>
@@ -570,6 +577,298 @@ def _quick_btn(val: str, icon: str, label: str) -> str:
 </button>"""
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# PDF REPORT GENERATOR — redesigned, all other logic unchanged
+# ─────────────────────────────────────────────────────────────────────────────
+def _generate_pdf_report(report: dict) -> bytes:
+    """
+    Generate a polished, branded PDF report using ReportLab.
+
+    Design:
+      • Blue→violet gradient header strip with TF logo mark and wordmark
+      • Title block + horizontal rule
+      • 4-column metadata row (Generated, By, Period, Department)
+      • KPI tile row (4 side-by-side boxes in surface colour)
+      • Score-distribution table (if available)
+      • Hiring-pipeline table (if available)
+      • Recursive full-data section with indented key→value rendering
+      • Confidentiality footer paragraph
+      • Consistent header + footer on every page
+    """
+    from reportlab.platypus import HRFlowable
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    from reportlab.lib import colors
+
+    # ── palette ──────────────────────────────────────────────────────────────
+    BLUE      = colors.HexColor("#1a3cff")
+    VIOLET    = colors.HexColor("#7c3aff")
+    INK       = colors.HexColor("#0d0e1a")
+    INK_SOFT  = colors.HexColor("#2a2b3d")
+    INK_MUTED = colors.HexColor("#6b6c80")
+    SURFACE   = colors.HexColor("#f1f0ff")
+    BORDER    = colors.HexColor("#e4e3f5")
+    WHITE     = colors.white
+
+    # ── style factory (unique names to avoid stylesheet key conflicts) ────────
+    def S(name, base="Normal", **kw):
+        return ParagraphStyle(name=f"_rpt_{name}_{id(report)}", parent=getSampleStyleSheet()[base], **kw)
+
+    styles = {
+        "title":   S("title",   "Title",
+                     fontName="Helvetica-Bold", fontSize=22, textColor=INK, leading=28, spaceAfter=4),
+        "sub":     S("sub",     "Normal",
+                     fontName="Helvetica", fontSize=11, textColor=INK_MUTED, leading=16, spaceAfter=2),
+        "sec":     S("sec",     "Normal",
+                     fontName="Helvetica-Bold", fontSize=13, textColor=INK, leading=18, spaceBefore=20, spaceAfter=8),
+        "mk":      S("mk",      "Normal",
+                     fontName="Helvetica-Bold", fontSize=8.5, textColor=INK_MUTED, leading=13),
+        "mv":      S("mv",      "Normal",
+                     fontName="Helvetica", fontSize=10, textColor=INK_SOFT, leading=14, spaceAfter=6),
+        "body":    S("body",    "Normal",
+                     fontName="Helvetica", fontSize=10, textColor=INK_SOFT, leading=15, spaceAfter=5),
+        "code":    S("code",    "Normal",
+                     fontName="Courier", fontSize=8.5, textColor=INK_SOFT, leading=13, leftIndent=8),
+        "th":      S("th",      "Normal",
+                     fontName="Helvetica-Bold", fontSize=9, textColor=WHITE, leading=13),
+        "td":      S("td",      "Normal",
+                     fontName="Helvetica", fontSize=9, textColor=INK_SOFT, leading=13),
+        "foot":    S("foot",    "Normal",
+                     fontName="Helvetica-Oblique", fontSize=8.5, textColor=INK_MUTED, leading=12, spaceAfter=2),
+    }
+
+    # ── page callbacks ────────────────────────────────────────────────────────
+    def _draw_page(c, doc):
+        w, h = letter
+        # gradient header
+        steps = 40
+        for i in range(steps):
+            t  = i / (steps - 1)
+            r_ = BLUE.red   + t * (VIOLET.red   - BLUE.red)
+            g_ = BLUE.green + t * (VIOLET.green - BLUE.green)
+            b_ = BLUE.blue  + t * (VIOLET.blue  - BLUE.blue)
+            c.setFillColorRGB(r_, g_, b_)
+            c.rect(i * (w / steps), h - 88, w / steps + 1, 88, fill=1, stroke=0)
+        # logo mark
+        c.setFillColor(WHITE)
+        c.roundRect(40, h - 68, 36, 36, 6, fill=1, stroke=0)
+        c.setFillColor(BLUE)
+        c.setFont("Helvetica-Bold", 13)
+        c.drawCentredString(58, h - 54, "TF")
+        # wordmark
+        c.setFillColor(WHITE)
+        c.setFont("Helvetica-Bold", 15)
+        c.drawString(84, h - 49, "TalentFlow Pro")
+        c.setFont("Helvetica", 8.5)
+        c.drawString(84, h - 62, "ZIBITECH HR Intelligence Platform")
+        # right badge
+        c.setFillColorRGB(1, 1, 1, 0.12)
+        c.roundRect(w - 158, h - 66, 118, 22, 4, fill=1, stroke=0)
+        c.setFillColor(WHITE)
+        c.setFont("Helvetica-Bold", 8)
+        c.drawCentredString(w - 99, h - 58, "OFFICIAL HR REPORT")
+        # footer
+        c.setStrokeColor(BORDER)
+        c.setLineWidth(0.5)
+        c.line(40, 34, w - 40, 34)
+        c.setFillColor(INK_MUTED)
+        c.setFont("Helvetica", 7.5)
+        c.drawString(40, 20, "TalentFlow Pro  \u2014  ZIBITECH HR Intelligence")
+        c.drawRightString(w - 40, 20, f"Page {doc.page}  \u00b7  Confidential")
+
+    # ── helper: KPI tile row ──────────────────────────────────────────────────
+    def _kpi_row(kpis):
+        w = letter[0]
+        n  = len(kpis)
+        cw = (w - 80) / n
+        row = []
+        for lbl, val, sub in kpis:
+            row.append(Paragraph(
+                f"<b><font size='20' color='#0d0e1a'>{val}</font></b><br/>"
+                f"<font size='8.5' color='#6b6c80'>{lbl}</font><br/>"
+                f"<font size='7.5' color='#6b6c80'>{sub}</font>",
+                styles["body"]))
+        t = Table([row], colWidths=[cw] * n, rowHeights=[64])
+        t.setStyle(TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, -1), SURFACE),
+            ("LINEAFTER",     (0, 0), (-2, -1), 0.5, BORDER),
+            ("BOX",           (0, 0), (-1, -1), 0.5, BORDER),
+            ("TOPPADDING",    (0, 0), (-1, -1), 16),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 18),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
+            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+        return t
+
+    # ── helper: data table ────────────────────────────────────────────────────
+    def _tbl(headers, rows, col_widths=None):
+        w   = letter[0]
+        cw  = col_widths or [(w - 80) / len(headers)] * len(headers)
+        hr  = [Paragraph(h, styles["th"]) for h in headers]
+        br  = [[Paragraph(str(c), styles["td"]) for c in r] for r in rows]
+        t   = Table([hr] + br, colWidths=cw, repeatRows=1)
+        t.setStyle(TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, 0),  BLUE),
+            ("TEXTCOLOR",     (0, 0), (-1, 0),  WHITE),
+            ("FONTNAME",      (0, 0), (-1, 0),  "Helvetica-Bold"),
+            ("FONTSIZE",      (0, 0), (-1, 0),  9),
+            ("TOPPADDING",    (0, 0), (-1, 0),  9),
+            ("BOTTOMPADDING", (0, 0), (-1, 0),  9),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
+            ("BACKGROUND",    (0, 1), (-1, -1), WHITE),
+            ("ROWBACKGROUNDS",(0, 1), (-1, -1), [WHITE, SURFACE]),
+            ("FONTNAME",      (0, 1), (-1, -1), "Helvetica"),
+            ("FONTSIZE",      (0, 1), (-1, -1), 9),
+            ("TOPPADDING",    (0, 1), (-1, -1), 7),
+            ("BOTTOMPADDING", (0, 1), (-1, -1), 7),
+            ("TEXTCOLOR",     (0, 1), (-1, -1), INK_SOFT),
+            ("LINEBELOW",     (0, 0), (-1, -2), 0.4, BORDER),
+            ("LINEBELOW",     (0, -1),(-1, -1), 0.4, BORDER),
+            ("BOX",           (0, 0), (-1, -1), 0.5, BORDER),
+            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+        return t
+
+    # ── build document ────────────────────────────────────────────────────────
+    try:
+        buffer = BytesIO()
+        w, h   = letter
+
+        doc = SimpleDocTemplate(
+            buffer, pagesize=letter,
+            leftMargin=40, rightMargin=40,
+            topMargin=108, bottomMargin=54,
+            title=f"HR Report — {report.get('report_type','').replace('_',' ').title()}",
+            author="TalentFlow Pro",
+            subject="HR Intelligence Report",
+        )
+
+        story = []
+
+        # title block
+        rtype = report.get("report_type", "report").replace("_", " ").title()
+        story.append(Spacer(1, 10))
+        story.append(Paragraph(rtype, styles["title"]))
+        story.append(Paragraph("Human Resources Intelligence Report", styles["sub"]))
+        story.append(Spacer(1, 6))
+        story.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceAfter=14))
+
+        # meta row
+        gen_date = report.get("generated_date") or datetime.now().strftime("%Y-%m-%d %H:%M")
+        gen_by   = report.get("generated_by", "HR Administrator")
+        start    = report.get("start_date", "\u2014")
+        end      = report.get("end_date",   "\u2014")
+        dept     = report.get("department_filter") or "All Departments"
+        cw4      = (w - 80) / 4
+
+        meta = Table([
+            [Paragraph("<b>Generated</b>",  styles["mk"]),
+             Paragraph("<b>Prepared By</b>",styles["mk"]),
+             Paragraph("<b>Period</b>",     styles["mk"]),
+             Paragraph("<b>Department</b>", styles["mk"])],
+            [Paragraph(gen_date, styles["mv"]),
+             Paragraph(gen_by,   styles["mv"]),
+             Paragraph(f"{start} \u2192 {end}", styles["mv"]),
+             Paragraph(dept,     styles["mv"])],
+        ], colWidths=[cw4] * 4)
+        meta.setStyle(TableStyle([
+            ("LEFTPADDING",  (0,0),(-1,-1), 0),
+            ("RIGHTPADDING", (0,0),(-1,-1), 12),
+            ("TOPPADDING",   (0,0),(-1,-1), 1),
+            ("BOTTOMPADDING",(0,0),(-1,-1), 1),
+            ("VALIGN",       (0,0),(-1,-1), "TOP"),
+        ]))
+        story.append(meta)
+        story.append(Spacer(1, 20))
+
+        # KPI tiles
+        rdata     = report.get("report_data", {}) or {}
+        stats_raw = rdata.get("statistics", {}) or {}
+        kpis = [
+            ("Total Applications",  str(rdata.get("total_applications") or rdata.get("applications") or "\u2014"), "All records"),
+            ("Avg Resume Score",    str(stats_raw.get("average_score", "\u2014")),     "Out of 100"),
+            ("Resumes Scored",      str(stats_raw.get("scored_applicants", "\u2014")), "Analysed"),
+            ("Total Applicants",    str(stats_raw.get("total_applicants", "\u2014")),  "In system"),
+        ]
+        story.append(Paragraph("Key Metrics", styles["sec"]))
+        story.append(_kpi_row(kpis))
+        story.append(Spacer(1, 20))
+
+        # Score distribution
+        dist = stats_raw.get("score_distribution", {})
+        if dist:
+            story.append(Paragraph("Score Distribution", styles["sec"]))
+            total_d = sum(dist.values()) or 1
+            rows    = [[k, str(v), f"{v / total_d * 100:.1f}%"] for k, v in dist.items()]
+            story.append(_tbl(
+                ["Category", "Count", "Share of Total"], rows,
+                [(w-80)*0.40, (w-80)*0.30, (w-80)*0.30]))
+            story.append(Spacer(1, 20))
+
+        # Hiring pipeline
+        pipeline = rdata.get("hiring_pipeline", {})
+        if pipeline:
+            story.append(Paragraph("Hiring Pipeline", styles["sec"]))
+            p_rows = [[k.replace("_", " ").title(), str(v)] for k, v in pipeline.items()]
+            story.append(_tbl(
+                ["Stage", "Count"], p_rows,
+                [(w-80)*0.60, (w-80)*0.40]))
+            story.append(Spacer(1, 20))
+
+        # Full data dump
+        story.append(Paragraph("Full Report Data", styles["sec"]))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER, spaceAfter=10))
+
+        def _render(d, depth=0):
+            pad = "&nbsp;" * (depth * 6)
+            for k, v in d.items():
+                label = str(k).replace("_", " ").title()
+                if isinstance(v, dict):
+                    story.append(Paragraph(f"{pad}<b>{label}</b>", styles["body"]))
+                    _render(v, depth + 1)
+                elif isinstance(v, list):
+                    story.append(Paragraph(f"{pad}<b>{label}:</b> [{len(v)} items]", styles["body"]))
+                    for item in v[:6]:
+                        story.append(Paragraph(f"{pad}&nbsp;&nbsp;&nbsp;\u2022 {str(item)[:120]}", styles["code"]))
+                    if len(v) > 6:
+                        story.append(Paragraph(f"{pad}&nbsp;&nbsp;&nbsp;<i>\u2026{len(v)-6} more</i>", styles["foot"]))
+                else:
+                    story.append(Paragraph(f"{pad}<b>{label}:</b> {str(v)[:200]}", styles["body"]))
+
+        if rdata:
+            _render(rdata)
+        else:
+            story.append(Paragraph("No structured data available for this report.", styles["foot"]))
+
+        # Confidentiality notice
+        story.append(Spacer(1, 28))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER, spaceAfter=10))
+        story.append(Paragraph(
+            "This document is strictly confidential and intended solely for authorised HR personnel. "
+            "Unauthorised distribution or reproduction is prohibited. "
+            f"Generated by TalentFlow Pro on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}.",
+            styles["foot"]
+        ))
+
+        doc.build(story, onFirstPage=_draw_page, onLaterPages=_draw_page)
+        pdf_bytes = buffer.getvalue()
+        buffer.close()
+        return pdf_bytes
+
+    except Exception as e:
+        print(f"PDF generation error: {e}")
+        # graceful text fallback
+        text_content = (
+            f"HR Report - {report.get('report_type','').title()}\n"
+            f"Generated: {report.get('generated_date', 'Unknown')}\n"
+            f"By: {report.get('generated_by', 'Unknown')}\n"
+            f"Period: {report.get('start_date', 'All time')} \u2192 {report.get('end_date', 'Present')}\n\n"
+        ) + json.dumps(report.get("report_data", {}), indent=2)
+        return text_content.encode("utf-8")
+
+
 # ── BACKEND ROUTES (100% UNCHANGED) ──────────────────────────────────────────
 
 @app.post("/api/generate-report")
@@ -644,7 +943,7 @@ async def view_report(report_id: str, request: Request):
         <h1>📊 {report['report_type'].replace('_',' ').title()}</h1>
         <p style="color:#8A8FA8;">Generated: {report.get('generated_date','—')} · By: {report.get('generated_by','—')}</p>
         <p>Period: {report.get('start_date','All time')} → {report.get('end_date','Present')}</p>
-        <pre>{json.dumps(report.get('report_data',{{}}), indent=2)}</pre>
+        <pre>{json.dumps(report.get('report_data',{}), indent=2)}</pre>
         </div></body></html>"""
         return HTMLResponse(content=html)
     except Exception as e:
@@ -660,14 +959,30 @@ async def download_report(report_id: str, request: Request):
         report = db.get_report(report_id)
         if not report:
             raise HTTPException(status_code=404, detail="Report not found")
-        if report.get('format') == 'json':
-            content  = json.dumps(report.get('report_data', {}), indent=2)
+
+        # Check format from query parameter or report data
+        format_param = request.query_params.get("format", report.get('format', 'html')).lower()
+
+        if format_param == 'json':
+            content = json.dumps(report.get('report_data', {}), indent=2)
             filename = f"hr_report_{report['report_type']}_{report.get('generated_date','unknown')}.json"
+            return PlainTextResponse(content=content, headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+        elif format_param == 'pdf':
+            pdf_bytes = _generate_pdf_report(report)
+            filename  = f"hr_report_{report['report_type']}_{report.get('generated_date','unknown')}.pdf"
+            return StreamingResponse(
+                BytesIO(pdf_bytes),
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+
         else:
             content  = f"HR Report - {report['report_type'].title()}\nGenerated: {report.get('generated_date','—')}\n\n"
             content += json.dumps(report.get('report_data', {}), indent=2)
             filename = f"hr_report_{report['report_type']}_{report.get('generated_date','unknown')}.txt"
-        return PlainTextResponse(content=content, headers={"Content-Disposition": f"attachment; filename={filename}"})
+            return PlainTextResponse(content=content, headers={"Content-Disposition": f"attachment; filename={filename}"})
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -225,6 +225,7 @@ _NAV = """<nav>
     <li><a href="/#contact">Contact</a></li>
   </ul>
   <a href="http://localhost:8003" class="nav-signin">Sign In</a>
+  
 </nav>"""
 
 _FOOTER = """<div class="site-footer">
