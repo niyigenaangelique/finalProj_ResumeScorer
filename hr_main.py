@@ -20,6 +20,89 @@ from hr_reports import *
 from hr_post_job import *
 from hr_evaluation import *
 
+# Contact Messages API Endpoints
+@app.post("/api/contact-message")
+async def submit_contact_message(request: Request):
+    """Submit a contact message from the contact form"""
+    try:
+        data = await request.json()
+        
+        # Validate required fields
+        required_fields = ['name', 'email', 'subject', 'message']
+        for field in required_fields:
+            if field not in data or not data[field].strip():
+                return JSONResponse(
+                    content={"error": f"Field '{field}' is required"}, 
+                    status_code=400
+                )
+        
+        # Save the message
+        success = db.save_contact_message(
+            name=data['name'].strip(),
+            email=data['email'].strip(),
+            subject=data['subject'].strip(),
+            message=data['message'].strip()
+        )
+        
+        if success:
+            return JSONResponse(content={
+                "success": True, 
+                "message": "Your message has been sent successfully!"
+            })
+        else:
+            return JSONResponse(
+                content={"error": "Failed to save message"}, 
+                status_code=500
+            )
+            
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@app.get("/api/contact-messages")
+async def get_contact_messages():
+    """Get all contact messages"""
+    try:
+        messages = db.get_contact_messages()
+        return JSONResponse(content=messages)
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@app.get("/api/contact-messages/unread")
+async def get_unread_contact_messages():
+    """Get unread contact messages"""
+    try:
+        messages = db.get_contact_messages(status='unread')
+        return JSONResponse(content=messages)
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@app.put("/api/contact-messages/{message_id}/mark-read")
+async def mark_contact_message_read(message_id: int):
+    """Mark a contact message as read"""
+    try:
+        success = db.mark_contact_message_read(message_id)
+        if success:
+            return JSONResponse(content={
+                "success": True, 
+                "message": "Message marked as read"
+            })
+        else:
+            return JSONResponse(
+                content={"error": "Message not found"}, 
+                status_code=404
+            )
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@app.get("/api/contact-unread-count")
+async def get_unread_contact_count():
+    """Get count of unread contact messages"""
+    try:
+        count = db.get_unread_contact_count()
+        return JSONResponse(content={"count": count})
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
 # Initialize database
 db = ResumeDatabase()
 

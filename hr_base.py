@@ -7,6 +7,7 @@ from datetime import datetime
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from jinja2 import Template
 
 app = FastAPI(title="TalentFlow Pro HR Portal", description="Professional HR Management System")
 
@@ -15,6 +16,9 @@ db = ResumeDatabase()
 
 # Session storage (in production, use Redis or database)
 sessions = {}
+
+# Password reset tokens storage (in production, use database)
+password_reset_tokens = {}
 
 # ─────────────────────────────────────────────────────────
 # EMAIL CONFIG
@@ -164,6 +168,7 @@ body {
 .tn-right {
   display: flex; align-items: center; gap: 10px;
   margin-left: auto; flex-shrink: 0;
+  position: relative;
 }
 .tn-search {
   display: flex; align-items: center; gap: 8px;
@@ -189,6 +194,62 @@ body {
   position: absolute; top: 6px; right: 6px;
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--red); border: 1.5px solid var(--white);
+}
+.notif-dropdown {
+  position: fixed; top: 70px; right: 30px;
+  background: var(--white); border: 3px solid var(--blue);
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  min-width: 320px; max-width: 400px;
+  z-index: 99999; display: none;
+  padding: 20px;
+}
+.notif-dropdown.show {
+  display: block;
+}
+.notif-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+}
+.notif-header h4 {
+  margin: 0; font-size: 0.9rem; font-weight: 600;
+  color: var(--text);
+}
+.notif-clear {
+  background: none; border: none; color: var(--muted);
+  font-size: 0.75rem; cursor: pointer; padding: 4px 8px;
+  border-radius: 4px; transition: all 0.15s;
+}
+.notif-clear:hover {
+  background: var(--off); color: var(--red);
+}
+.notif-list {
+  max-height: 300px; overflow-y: auto;
+}
+.notif-empty {
+  padding: 20px; text-align: center; color: var(--muted);
+  font-size: 0.85rem;
+}
+.notif-item {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.15s;
+}
+.notif-item:hover {
+  background: var(--off);
+}
+.notif-item.unread {
+  background: #f0f9ff; border-left: 3px solid var(--blue);
+}
+.notif-title {
+  font-size: 0.85rem; font-weight: 600; color: var(--text);
+  margin-bottom: 4px;
+}
+.notif-message {
+  font-size: 0.8rem; color: var(--muted);
+  line-height: 1.4;
+}
+.notif-time {
+  font-size: 0.75rem; color: var(--muted);
+  margin-top: 4px;
 }
 .user-pill {
   display: flex; align-items: center; gap: 8px;
@@ -512,13 +573,22 @@ def _build_topnav(current_page: str, current_user: str) -> str:
       </svg>
       <input type="text" placeholder="Search anything…" id="globalSearch" oninput="globalSearchFn(this.value)">
     </div>
-    <button class="notif-btn" title="Notifications">
+    <button class="notif-btn" title="Notifications" onclick="toggleNotifications()">
       <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
         <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
       </svg>
-      <span class="notif-dot"></span>
+      <span class="notif-dot" id="notifCount"></span>
     </button>
+    <div class="notif-dropdown" id="notifDropdown">
+      <div class="notif-header">
+        <h4>Notifications</h4>
+        <button class="notif-clear" onclick="clearAllNotifications()">Clear All</button>
+      </div>
+      <div class="notif-list" id="notifList">
+        <div class="notif-empty">No new notifications</div>
+      </div>
+    </div>
     <div class="user-pill">
       <div class="user-av">{user_initial}</div>
       <span class="user-name">{user_name}</span>
@@ -567,6 +637,146 @@ function globalSearchFn(q) {
     r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
   });
 }
+
+// Notification system
+let notifications = [];
+let notificationInterval;
+
+function toggleNotifications() {
+  console.log('Notification button clicked!');
+  const dropdown = document.getElementById('notifDropdown');
+  console.log('Dropdown element found:', dropdown);
+  
+  if (dropdown) {
+    dropdown.classList.toggle('show');
+    console.log('Dropdown classes after toggle:', dropdown.className);
+    console.log('Is show class present?', dropdown.classList.contains('show'));
+    
+    // Close when clicking outside
+    if (dropdown.classList.contains('show')) {
+      setTimeout(() => {
+        document.addEventListener('click', closeNotificationsOutside);
+      }, 100);
+    }
+  } else {
+    console.error('notifDropdown element not found!');
+  }
+}
+
+function closeNotificationsOutside(e) {
+  const dropdown = document.getElementById('notifDropdown');
+  if (!dropdown.contains(e.target) && !e.target.closest('.notif-btn')) {
+    dropdown.classList.remove('show');
+    document.removeEventListener('click', closeNotificationsOutside);
+  }
+}
+
+function loadNotifications() {
+  console.log('Loading notifications...');
+  fetch('/api/contact-messages/unread')
+    .then(response => response.json())
+    .then(data => {
+      console.log('Notifications data received:', data);
+      notifications = data;
+      updateNotificationUI();
+    })
+    .catch(error => console.error('Error loading notifications:', error));
+}
+
+function updateNotificationUI() {
+  console.log('Updating notification UI with:', notifications);
+  const notifCount = document.getElementById('notifCount');
+  const notifList = document.getElementById('notifList');
+  
+  console.log('notifCount element:', notifCount);
+  console.log('notifList element:', notifList);
+  
+  if (notifications.length === 0) {
+    console.log('No notifications, hiding count');
+    if (notifCount) notifCount.style.display = 'none';
+    if (notifList) notifList.innerHTML = '<div class="notif-empty">No new notifications</div>';
+  } else {
+    console.log('Found', notifications.length, 'notifications');
+    if (notifCount) {
+      notifCount.style.display = 'block';
+      notifCount.textContent = notifications.length;
+    }
+    
+    const notifHTML = notifications.map(notif => `
+      <div class="notif-item unread" onclick="markAsRead(${notif.id})">
+        <div class="notif-title">New Contact Message</div>
+        <div class="notif-message">${notif.name}: ${notif.subject}</div>
+        <div class="notif-time">${formatTime(notif.created_at)}</div>
+      </div>
+    `).join('');
+    
+    console.log('Generated notification HTML:', notifHTML);
+    if (notifList) notifList.innerHTML = notifHTML;
+  }
+}
+
+function markAsRead(messageId) {
+  fetch(`/api/contact-messages/${messageId}/mark-read`, {
+    method: 'PUT'
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Remove from notifications list
+      notifications = notifications.filter(n => n.id !== messageId);
+      updateNotificationUI();
+      showSuccess('Message marked as read');
+    }
+  })
+  .catch(error => console.error('Error marking as read:', error));
+}
+
+function clearAllNotifications() {
+  if (notifications.length === 0) return;
+  
+  if (confirm('Clear all notifications?')) {
+    Promise.all(notifications.map(n => 
+      fetch(`/api/contact-messages/${n.id}/mark-read`, { method: 'PUT' })
+    ))
+    .then(() => {
+      notifications = [];
+      updateNotificationUI();
+      showSuccess('All notifications cleared');
+    })
+    .catch(error => console.error('Error clearing notifications:', error));
+  }
+}
+
+function formatTime(dateString) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = now - date;
+  
+  if (diff < 60000) return 'Just now';
+  if (diff < 3600000) return Math.floor(diff / 60000) + ' minutes ago';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + ' hours ago';
+  return date.toLocaleDateString();
+}
+
+// Auto-refresh notifications every 30 seconds
+function startNotificationRefresh() {
+  loadNotifications();
+  notificationInterval = setInterval(loadNotifications, 30000);
+}
+
+// Stop refresh when page is hidden
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) {
+    clearInterval(notificationInterval);
+  } else {
+    startNotificationRefresh();
+  }
+});
+
+// Start notification system
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(startNotificationRefresh, 500); // Small delay to ensure page is ready
+});
 </script>
 """
 
@@ -794,6 +1004,10 @@ LOGIN_HTML = FONTS + """
 
     <div class="divider"></div>
     
+    <div style="text-align: center; margin-top: 1rem;">
+      <a href="/forgot-password" style="color: var(--ink3); text-decoration: none; font-size: 0.9rem; transition: color 0.2s;">Forgot your password?</a>
+    </div>
+    
   </div>
   </div>
 </div>
@@ -801,11 +1015,9 @@ LOGIN_HTML = FONTS + """
 </html>
 """
 
-
 # ─────────────────────────────────────────────────────────
 # AUTH ROUTES
-# ─────────────────────────────────────────────────────────
-from jinja2 import Template
+# ____________________________________________________________________________
 
 HR_CREDENTIALS = {
     "angelbrenna20@gmail.com": "Niyigena2003@",
@@ -853,19 +1065,12 @@ async def logout(request: Request):
     return resp
 
 
-# ─────────────────────────────────────────────────────────
-# DASHBOARD ROUTE  (delegates to hr_dashboard_page)
-# ─────────────────────────────────────────────────────────
-@app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request):
-    current_user = get_current_user(request)
-    if not current_user:
-        return RedirectResponse(url="/", status_code=302)
-
-    from hr_dashboard_page import build_dashboard_html
-    applications = db.get_all_applications()
-    statistics   = db.get_statistics()
-    return HTMLResponse(content=build_dashboard_html(statistics, applications, current_user))
+# Forgot password functionality moved to separate file to avoid syntax errors
+# Import the simple forgot password implementation
+try:
+    import forgot_password_simple
+except ImportError:
+    pass  # If file doesn't exist, HR portal will still work
 
 
 # ─────────────────────────────────────────────────────────

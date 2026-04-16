@@ -188,6 +188,35 @@ class ResumeDatabase:
             )
         ''')
         
+        # Create contact_messages table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS contact_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                email TEXT NOT NULL,
+                subject TEXT NOT NULL,
+                message TEXT NOT NULL,
+                status TEXT DEFAULT 'unread',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Create ai_screening_results table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ai_screening_results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                applicant_id INTEGER,
+                job_id INTEGER,
+                ai_score REAL,
+                ai_status TEXT,
+                match_details TEXT,
+                interview_questions TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (applicant_id) REFERENCES applicants (id),
+                FOREIGN KEY (job_id) REFERENCES jobs (id)
+            )
+        ''')
+        
         conn.commit()
         conn.close()
     
@@ -1697,6 +1726,150 @@ class ResumeDatabase:
             columns = [desc[0] for desc in cursor.description]
             return dict(zip(columns, result))
         return None
+    
+    # Contact Messages Methods
+    def save_contact_message(self, name: str, email: str, subject: str, message: str) -> bool:
+        """Save a new contact message"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                INSERT INTO contact_messages (name, email, subject, message)
+                VALUES (?, ?, ?, ?)
+            ''', (name, email, subject, message))
+            
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error saving contact message: {e}")
+            return False
+        finally:
+            conn.close()
+    
+    def get_contact_messages(self, status: str = None) -> List[Dict]:
+        """Get contact messages, optionally filtered by status"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        if status:
+            cursor.execute('''
+                SELECT * FROM contact_messages 
+                WHERE status = ? 
+                ORDER BY created_at DESC
+            ''', (status,))
+        else:
+            cursor.execute('''
+                SELECT * FROM contact_messages 
+                ORDER BY created_at DESC
+            ''')
+        
+        results = cursor.fetchall()
+        columns = [desc[0] for desc in cursor.description]
+        conn.close()
+        
+        return [dict(zip(columns, result)) for result in results]
+    
+    def mark_contact_message_read(self, message_id: int) -> bool:
+        """Mark a contact message as read"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                UPDATE contact_messages 
+                SET status = 'read' 
+                WHERE id = ?
+            ''', (message_id,))
+            
+            conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            print(f"Error marking message as read: {e}")
+            return False
+        finally:
+            conn.close()
+    
+    def get_unread_contact_count(self) -> int:
+        """Get count of unread contact messages"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT COUNT(*) FROM contact_messages 
+            WHERE status = 'unread'
+        ''')
+        
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count
+    
+    def save_ai_screening(self, applicant_id: int, job_id: int, ai_score: float, 
+                         ai_status: str, match_details: Dict, interview_questions: List[Dict]) -> bool:
+        """Save AI screening results"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                INSERT INTO ai_screening_results 
+                (applicant_id, job_id, ai_score, ai_status, match_details, interview_questions, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (applicant_id, job_id, ai_score, ai_status, 
+                  json.dumps(match_details), json.dumps(interview_questions)))
+            
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error saving AI screening: {e}")
+            return False
+        finally:
+            conn.close()
+    
+    def get_ai_screening_results(self, applicant_id: int = None, job_id: int = None) -> List[Dict]:
+        """Get AI screening results, optionally filtered by applicant or job"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        if applicant_id:
+            cursor.execute('''
+                SELECT * FROM ai_screening_results 
+                WHERE applicant_id = ? 
+                ORDER BY created_at DESC
+            ''', (applicant_id,))
+        elif job_id:
+            cursor.execute('''
+                SELECT * FROM ai_screening_results 
+                WHERE job_id = ? 
+                ORDER BY created_at DESC
+            ''', (job_id,))
+        else:
+            cursor.execute('''
+                SELECT * FROM ai_screening_results 
+                ORDER BY created_at DESC
+            ''')
+        
+        results = cursor.fetchall()
+        columns = [desc[0] for desc in cursor.description]
+        conn.close()
+        
+        formatted_results = []
+        for result in results:
+            row_dict = dict(zip(columns, result))
+            # Parse JSON fields
+            if row_dict.get('match_details'):
+                try:
+                    row_dict['match_details'] = json.loads(row_dict['match_details'])
+                except:
+                    pass
+            if row_dict.get('interview_questions'):
+                try:
+                    row_dict['interview_questions'] = json.loads(row_dict['interview_questions'])
+                except:
+                    pass
+            formatted_results.append(row_dict)
+        
+        return formatted_results
 
 # Initialize database
 db = ResumeDatabase()

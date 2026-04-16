@@ -1,11 +1,218 @@
 from fastapi import FastAPI, Request, HTTPException, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from database import ResumeDatabase
 from simple_app import SimpleResumeScorer
+import json
+import re
+from typing import List, Dict, Any
 
 app = FastAPI(title="Talent Flow Style Portal", description="Modern recruitment portal")
 db = ResumeDatabase()
 scorer = SimpleResumeScorer()
+
+class AIAgent:
+    """AI Agent for intelligent recruitment automation"""
+    
+    def __init__(self):
+        self.screening_criteria = {
+            "experience_years": 3,
+            "certifications": ["CSA", "CIS", "CAD", "CIS-EM", "CSM", "CSP"],
+            "technical_skills": ["JavaScript", "Glide", "Flow Designer", "Integration Hub", "Service Portal"],
+            "soft_skills": ["communication", "problem-solving", "teamwork", "leadership"]
+        }
+    
+    def screen_candidate(self, resume_data: Dict[str, Any], job_requirements: Dict[str, Any]) -> Dict[str, Any]:
+        """AI-powered candidate screening - Enhanced for better scoring"""
+        score = 40  # Base score for applying
+        max_score = 100
+        
+        # Experience matching - more generous scoring
+        candidate_exp = resume_data.get("experience_years", 0)
+        required_exp = job_requirements.get("experience_years", 0)
+        if candidate_exp >= required_exp:
+            score += 30
+        elif candidate_exp >= required_exp * 0.5:
+            score += 20
+        elif candidate_exp > 0:
+            score += 10
+        
+        # Skills matching - broader skill recognition
+        candidate_skills = [skill.lower() for skill in resume_data.get("skills", [])]
+        required_skills = [skill.lower() for skill in job_requirements.get("technical_skills", [])]
+        
+        # Add common related skills
+        expanded_skills = set(candidate_skills)
+        skill_synonyms = {
+            'javascript': ['js', 'typescript', 'node', 'nodejs'],
+            'servicenow': ['servicenow platform', 'now platform', 'snc'],
+            'react': ['reactjs', 'react.js', 'jsx'],
+            'angular': ['angularjs', 'angular.js', 'ng'],
+            'html': ['html5', 'markup'],
+            'css': ['css3', 'sass', 'scss', 'styling'],
+            'sql': ['database', 'mysql', 'postgresql', 'oracle'],
+            'git': ['github', 'gitlab', 'version control']
+        }
+        
+        for skill in candidate_skills:
+            for synonym in skill_synonyms.get(skill, []):
+                expanded_skills.add(synonym)
+        
+        skill_match = len(expanded_skills & set(required_skills))
+        if required_skills:
+            skill_percentage = skill_match / len(required_skills)
+            score += skill_percentage * 25
+        
+        # Certification matching - more recognition
+        candidate_certs = [cert.lower() for cert in resume_data.get("certifications", [])]
+        required_certs = [cert.lower() for cert in job_requirements.get("certifications", [])]
+        
+        # Recognize related certifications
+        cert_bonus = 0
+        for cert in candidate_certs:
+            if any(req in cert for req in required_certs):
+                cert_bonus += 1
+            elif 'csa' in cert or 'cis' in cert or 'cad' in cert:
+                cert_bonus += 0.5
+        
+        score += min(cert_bonus * 10, 20)
+        
+        # Education bonus
+        education = resume_data.get("education_level", "").lower()
+        if education in ["master", "phd", "doctorate"]:
+            score += 10
+        elif education in ["bachelor", "bs", "ba", "b.s.", "b.a."]:
+            score += 5
+        
+        # Bonus for having any relevant experience
+        if candidate_exp > 0:
+            score += 5
+        
+        # Bonus for having multiple skills
+        if len(candidate_skills) >= 5:
+            score += 5
+        elif len(candidate_skills) >= 3:
+            score += 3
+        
+        return {
+            "candidate_id": resume_data.get("id"),
+            "screening_score": round(score, 2),
+            "max_score": max_score,
+            "status": "shortlisted" if score >= 70 else "review_needed" if score >= 50 else "rejected",
+            "match_details": {
+                "experience_match": candidate_exp >= required_exp,
+                "certification_match": f"{int(cert_bonus)}/{len(required_certs)}",
+                "skill_match": f"{skill_match}/{len(required_skills)}",
+                "education_level": resume_data.get("education_level")
+            }
+        }
+    
+    def generate_interview_questions(self, resume_data: Dict[str, Any], job_requirements: Dict[str, Any]) -> List[Dict[str, str]]:
+        """Generate intelligent interview questions based on candidate profile and job requirements"""
+        questions = []
+        
+        # Technical questions based on skills gap
+        candidate_skills = [skill.lower() for skill in resume_data.get("skills", [])]
+        required_skills = [skill.lower() for skill in job_requirements.get("technical_skills", [])]
+        skill_gaps = set(required_skills) - set(candidate_skills)
+        
+        for skill in list(skill_gaps)[:3]:
+            questions.append({
+                "type": "technical",
+                "question": f"Can you describe your experience with {skill} and how you've applied it in ServiceNow projects?",
+                "category": "Technical Assessment"
+            })
+        
+        # Experience-based questions
+        experience_years = resume_data.get("experience_years", 0)
+        if experience_years < 2:
+            questions.append({
+                "type": "experience",
+                "question": "Since you're early in your ServiceNow career, what specific projects have demonstrated your ability to learn quickly and deliver results?",
+                "category": "Experience Assessment"
+            })
+        elif experience_years > 5:
+            questions.append({
+                "type": "experience",
+                "question": "With your extensive ServiceNow experience, can you share an example of how you've mentored junior developers or led complex implementations?",
+                "category": "Leadership Assessment"
+            })
+        
+        # Behavioral questions
+        questions.extend([
+            {
+                "type": "behavioral",
+                "question": "Describe a challenging ServiceNow implementation you worked on and how you overcame obstacles to deliver successfully.",
+                "category": "Problem Solving"
+            },
+            {
+                "type": "behavioral",
+                "question": "How do you stay updated with ServiceNow platform changes and new features?",
+                "category": "Continuous Learning"
+            }
+        ])
+        
+        return questions
+    
+    def filter_candidates(self, candidates: List[Dict[str, Any]], filters: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Intelligent candidate filtering with AI-powered ranking"""
+        filtered_candidates = []
+        
+        for candidate in candidates:
+            # Apply filters
+            if filters.get("department") and candidate.get("department") != filters["department"]:
+                continue
+            
+            if filters.get("job_type") and candidate.get("job_type") != filters["job_type"]:
+                continue
+            
+            if filters.get("min_experience") and candidate.get("experience_years", 0) < filters["min_experience"]:
+                continue
+            
+            # AI-powered relevance scoring
+            relevance_score = self._calculate_relevance(candidate, filters)
+            candidate["ai_relevance_score"] = relevance_score
+            filtered_candidates.append(candidate)
+        
+        # Sort by AI relevance score
+        filtered_candidates.sort(key=lambda x: x.get("ai_relevance_score", 0), reverse=True)
+        return filtered_candidates
+    
+    def _calculate_relevance(self, candidate: Dict[str, Any], filters: Dict[str, Any]) -> float:
+        """Calculate AI-powered relevance score"""
+        score = 0
+        
+        # Skills matching
+        if filters.get("required_skills"):
+            candidate_skills = [skill.lower() for skill in candidate.get("skills", [])]
+            required_skills = [skill.lower() for skill in filters["required_skills"]]
+            skill_match = len(set(candidate_skills) & set(required_skills))
+            score += (skill_match / len(required_skills)) * 40
+        
+        # Experience bonus
+        exp_years = candidate.get("experience_years", 0)
+        if exp_years >= 5:
+            score += 20
+        elif exp_years >= 3:
+            score += 10
+        
+        # Certification bonus
+        certs = candidate.get("certifications", [])
+        if any(cert in self.screening_criteria["certifications"] for cert in certs):
+            score += 20
+        
+        # Recent activity bonus
+        if candidate.get("last_active_days", 999) <= 30:
+            score += 10
+        
+        # Education bonus
+        if candidate.get("education_level") in ["Master", "PhD"]:
+            score += 10
+        
+        return min(score, 100)
+
+# Initialize AI Agent
+ai_agent = AIAgent()
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  SHARED PIECES
@@ -46,12 +253,22 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:cen
 .hero-blob{position:absolute;border-radius:50%;filter:blur(60px);pointer-events:none;}
 .hero-blob-1{width:400px;height:400px;background:rgba(255,255,255,.06);top:-100px;right:30%;}
 .hero-blob-2{width:250px;height:250px;background:rgba(112,72,232,.4);bottom:10%;left:5%;}
-.hero-content{position:relative;z-index:2;max-width:500px;}
+.hero-content{position:relative;z-index:2;display:flex;align-items:center;gap:3rem;width:100%;}
+.hero-text{flex:0 0 auto;max-width:500px;z-index:3;}
+.hero-images{flex:1;display:flex;gap:1.5rem;position:relative;z-index:2;opacity:0;animation:floatUI 5s 1s ease-in-out infinite,fadeIn .9s .6s ease both;}
+.hero-main-image{flex:2;}
+.hero-side-images{flex:1;display:flex;flex-direction:column;gap:1rem;}
+.hero-img-large{width:100%;height:auto;object-fit:cover;border-radius:20px;box-shadow:0 40px 100px rgba(0,0,0,.20);transition:transform 0.3s ease, box-shadow 0.3s ease;}
+.hero-img-main{max-height:650px;}
+.hero-img-side{max-height:300px;}
+.hero-img-1{transform:rotate(-2deg);}
+.hero-img-2{transform:rotate(1deg);}
+.hero-img-3{transform:rotate(0deg);}
+.hero-img-large:hover{transform:rotate(0deg) translateY(-10px);box-shadow:0 50px 120px rgba(0,0,0,.35);}
 .hero h1{font-family:'Nunito',sans-serif;font-size:clamp(2.4rem,5vw,3.4rem);font-weight:900;color:var(--white);line-height:1.15;margin-bottom:1.25rem;opacity:0;animation:fadeUp .8s .3s ease both;}
 .hero-sub{font-size:1rem;color:rgba(255,255,255,.82);line-height:1.8;margin-bottom:2rem;opacity:0;animation:fadeUp .8s .5s ease both;}
 .hero-btn{display:inline-flex;align-items:center;gap:.6rem;background:var(--red);color:var(--white);padding:.85rem 2rem;border-radius:4px;font-weight:800;font-size:.92rem;text-decoration:none;opacity:0;animation:fadeUp .8s .7s ease both;transition:background .2s,transform .2s,box-shadow .2s;}
 .hero-btn:hover{background:#e53e3e;transform:translateY(-2px);box-shadow:0 8px 30px rgba(250,82,82,.4);}
-.hero-mockup{position:absolute;right:4%;top:50%;transform:translateY(-50%);z-index:2;width:460px;opacity:0;animation:floatUI 5s 1s ease-in-out infinite,fadeIn .9s .6s ease both;}
 .mockup-card{background:var(--white);border-radius:16px;box-shadow:0 30px 80px rgba(0,0,0,.25);padding:1.5rem;position:relative;}
 .mockup-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;}
 .mockup-title{font-family:'Nunito',sans-serif;font-size:.95rem;font-weight:800;color:var(--text);}
@@ -87,9 +304,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:cen
 .diag-divider{height:80px;background:var(--off);clip-path:polygon(0 0,100% 40%,100% 100%,0 100%);}
 .diag-divider-rev{height:80px;background:var(--white);clip-path:polygon(0 40%,100% 0,100% 100%,0 100%);}
 .about-section{background:var(--off);padding:6rem 4rem;}
-.about-grid{display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:center;}
-.about-blob-bg{width:380px;height:340px;background:linear-gradient(135deg,rgba(59,91,219,.08),rgba(112,72,232,.08));border-radius:60% 40% 50% 50%/50% 60% 40% 50%;display:flex;align-items:center;justify-content:center;}
-.about-people{font-size:5.5rem;animation:floatUI 6s ease-in-out infinite;}
+.about-grid{display:flex;align-items:center;gap:0;justify-content:space-between;}
+.about-image{width:320px;height:320px;border-radius:360px;object-fit:cover;box-shadow:0 20px 60px rgba(59,91,219,.15);animation:floatUI 6s ease-in-out infinite;margin-right:0;flex-shrink:0;}
 .about-content p{font-size:.95rem;color:var(--muted);line-height:1.85;margin-bottom:1rem;}
 .about-actions{display:flex;align-items:center;gap:1.25rem;margin-top:2rem;flex-wrap:wrap;}
 .about-btn{background:var(--red);color:var(--white);padding:.75rem 1.75rem;border-radius:4px;font-weight:800;font-size:.88rem;text-decoration:none;transition:background .2s,transform .2s;}
@@ -209,7 +425,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:cen
   nav{padding:.9rem 1.5rem;}
   .nav-links-list{display:none;}
   .hero,.services-section,.about-section,.why-section,.jobs-section,.testi-section,.bottom-section,.tracker-hero,.tracker-body,.site-footer{padding-left:1.5rem;padding-right:1.5rem;}
-  .hero-mockup{display:none;}
+  .hero-images{display:none;}
+  .hero-left-image{display:none;}
   .services-intro,.about-grid,.testi-grid,.bottom-grid,.footer-grid{grid-template-columns:1fr;}
   .why-grid,.cards-grid{grid-template-columns:1fr;}
 }
@@ -259,39 +476,24 @@ modern_landing_template = (
     + _BASE_HEAD
     + """<title>TalentFlow &mdash; ServiceNow Recruitment Experts</title></head><body>
 <div class="page-loader"><div class="loader-logo">TalentFlow</div><div class="loader-spin"></div></div>"""
-    + _NAV
-    + """
++ _NAV
++ """
 <section class="hero" id="home">
   <div class="hero-blob hero-blob-1"></div>
   <div class="hero-blob hero-blob-2"></div>
-  <div class="hero-content">
-    <h1>TalentFlow lets your<br>career so easy.</h1>
-    <p class="hero-sub">Talent Flow is a ServiceNow recruitment agency, created to look after the needs of the ServiceNow community. Permanent, contract, and project roles.</p>
-    <a href="/jobs" class="hero-btn">Browse Available Jobs &rarr;</a>
-  </div>
-  <div class="hero-mockup">
-    <div style="position:relative;">
-      <div class="mockup-mini">
-        <div class="mini-label">Active Applications</div>
-        <div class="mini-title">ServiceNow Roles</div>
-        <div class="mini-bar-wrap"><div class="mini-bar"></div></div>
+  <div class="hero-content" style="display:flex;flex-direction:row;align-items:center;justify-content:space-between;">
+    <div class="hero-text" style="text-align:left;width:40%;margin-right:2rem;">
+      <h1>TalentFlow lets your<br>career so easy.</h1>
+      <p class="hero-sub">Talent Flow is a ServiceNow recruitment agency, created to look after the needs of the ServiceNow community. Permanent, contract, and project roles.</p>
+      <a href="/jobs" class="hero-btn">Browse Available Jobs &rarr;</a>
+    </div>
+    <div class="hero-images">
+      <div class="hero-main-image">
+        <img src="/templates/a.jpeg" alt="TalentFlow Team" class="hero-img-large hero-img-main">
       </div>
-      <div class="mockup-card">
-        <div class="mockup-header"><div class="mockup-title">&#128084; Open Positions</div><span class="mockup-badge">LIVE</span></div>
-        <div class="mockup-stat">
-          <div class="mockup-circle">34K</div>
-          <div class="mockup-rows">
-            <div class="mockup-row"><div class="mockup-row-fill" style="width:78%"></div></div>
-            <div class="mockup-row"><div class="mockup-row-fill" style="width:55%"></div></div>
-            <div class="mockup-row"><div class="mockup-row-fill" style="width:90%"></div></div>
-            <div class="mockup-row"><div class="mockup-row-fill" style="width:40%"></div></div>
-          </div>
-        </div>
-        <div class="mockup-tags">
-          <span class="mockup-tag active">ITSM</span><span class="mockup-tag active">Platform</span>
-          <span class="mockup-tag">CSM</span><span class="mockup-tag">SecOps</span>
-          <span class="mockup-tag">HRSD</span><span class="mockup-tag">ITOM</span>
-        </div>
+      <div class="hero-side-images">
+        <img src="/templates/c.jpeg" alt="Professional Team" class="hero-img-large hero-img-side">
+        <img src="/templates/b.jpeg" alt="Recruitment Process" class="hero-img-large hero-img-side">
       </div>
     </div>
   </div>
@@ -302,14 +504,16 @@ modern_landing_template = (
     <div class="reveal">
       <span class="eyebrow">Our Services</span>
       <h2 class="section-title">Our Core <span>Featured</span> Service</h2>
-      <p style="color:var(--muted);font-size:.97rem;line-height:1.8;">We specialise exclusively in the ServiceNow ecosystem &mdash; connecting the right people with the right roles, every time.<br><br>
-      Unlike standard automation tools, TalentFlow utilizes &ldquo;Agentic AI&rdquo; to perform tasks autonomously. A recruiter can activate an AI agent that handles screening, follow-ups, and question generation without manual input.</p>
-    </div>
+<p style="color:var(--muted);font-size:.97rem;line-height:1.8;">Here at ZIBITECH, We specialise exclusively in the ServiceNow ecosystem — hiring the right people with differnt skills, and 
+experience with the right roles, every time.<br><br>
+Unlike standard automation tools, TalentFlow utilizes 
+“Agentic AI” (intelligent automation) to perform tasks autonomously, without constant oversight. 
+A recruiter can activate an AI agent that handles resume scorer — from candidate filtering to hiring.</p></div>
     <div class="cards-grid">
-      <div class="svc-card reveal reveal-d1"><div class="svc-icon">&#128084;</div><h3>Permanent Recruitment</h3><p>Shortlist of prequalified, certified ServiceNow Specialists for your permanent positions.</p><a href="/#contact" class="read-more">Read More &rarr;</a></div>
-      <div class="svc-card reveal reveal-d2"><div class="svc-icon">&#9889;</div><h3>Contract Recruitment</h3><p>Certified ServiceNow Specialists available within 48hrs for your urgent contract needs.</p><a href="/#contact" class="read-more">Read More &rarr;</a></div>
-      <div class="svc-card reveal reveal-d3"><div class="svc-icon">&#128274;</div><h3>Project Privacy</h3><p>Complete discretion and confidentiality throughout every placement process.</p><a href="/#contact" class="read-more">Read More &rarr;</a></div>
-      <div class="svc-card reveal reveal-d4"><div class="svc-icon">&#128640;</div><h3>Project Delivery</h3><p>Outsource your ServiceNow project to our team of experienced professionals.</p><a href="/#contact" class="read-more">Read More &rarr;</a></div>
+      <div class="svc-card reveal reveal-d1"><div class="svc-icon">&#128084;</div><h3>Permanent Recruitment</h3><p>Shortlist of prequalified, certified ServiceNow Specialists for your permanent positions.</p></div>
+      <div class="svc-card reveal reveal-d2"><div class="svc-icon">&#9889;</div><h3>Contract Recruitment</h3><p>Certified ServiceNow Specialists available within 48hrs for your urgent contract needs.</p></div>
+      <div class="svc-card reveal reveal-d3"><div class="svc-icon">&#128274;</div><h3>Project Privacy</h3><p>Complete discretion and confidentiality throughout every placement process.</p></div>
+      <div class="svc-card reveal reveal-d4"><div class="svc-icon">&#128640;</div><h3>Project Delivery</h3><p>Outsource your ServiceNow project to our team of experienced professionals.</p></div>
     </div>
   </div>
 </section>
@@ -317,15 +521,15 @@ modern_landing_template = (
 <div class="diag-divider"></div>
 <section class="about-section" id="about">
   <div class="about-grid">
-    <div class="reveal"><div class="about-blob-bg"><div class="about-people">&#128105;&#8205;&#128188;&#128104;&#8205;&#128188;</div></div></div>
+    <div class="reveal"><img src="/templates/d.jpeg" alt="About TalentFlow" class="about-image"></div>
     <div class="reveal reveal-d1">
       <span class="eyebrow">Who We Are</span>
-      <h2 class="section-title">We are the Best Online<br><span>Recruitment Firm</span> in the world</h2>
-      <div class="about-content">
-        <p>With over 10 years in Technology Recruitment and the last 5 years specifically devoted to the ServiceNow ecosystem, we bring unmatched specialist expertise to every hire.</p>
-        <p>We are not generalist recruiters &mdash; we understand certifications, modules, release cycles, and what makes a ServiceNow professional truly exceptional.</p>
-      </div>
-      <div class="about-actions"><a href="/#contact" class="about-btn">More About Us</a></div>
+     <h2 class="section-title">We are the Best Online<br><span>Recruitment Firm</span> in the world</h2>
+   <div class="about-content">
+  <p>With over 10 years in Technology Recruitment and the last 5 years specifically devoted to the ServiceNow ecosystem, we bring unmatched specialist expertise, precision, and dedicated focus to every hire.</p>
+  <p>We are not generalist recruiters — we deeply understand certifications, modules, release cycles, workflows, and what makes a ServiceNow professional truly exceptional, high-performing, and culture-fit.</p>
+   </div>
+<div class="about-actions"><a href="/#contact" class="about-btn">Contact Us for more information</a></div>
     </div>
   </div>
 </section>
@@ -353,11 +557,7 @@ modern_landing_template = (
   </div>
   <div class="filter-bar reveal">
     <button class="filter-btn active" onclick="filterJobs('all',this)">All Roles</button>
-    <button class="filter-btn" onclick="filterJobs('ITSM',this)">ITSM</button>
-    <button class="filter-btn" onclick="filterJobs('Platform',this)">Platform</button>
-    <button class="filter-btn" onclick="filterJobs('CSM',this)">CSM</button>
-    <button class="filter-btn" onclick="filterJobs('Contract',this)">Contract</button>
-    <button class="filter-btn" onclick="filterJobs('Permanent',this)">Permanent</button>
+    
   </div>
   <div class="jobs-grid" id="jobsGrid">
     {% for job in jobs[:6] %}
@@ -386,17 +586,20 @@ modern_landing_template = (
   <div class="testi-grid">
     <div class="reveal">
       <div class="avatar-cluster">
-        <div class="av av-1">&#128105;</div><div class="av av-2 active-av">&#128104;&#8205;&#128187;</div>
-        <div class="av av-3">&#128105;&#8205;&#128188;</div><div class="av av-4">&#128104;</div>
-        <div class="av av-5">&#128105;&#8205;&#127979;</div><div class="av av-6">&#128104;&#8205;&#128188;</div>
+        <div class="av av-1"><img src="/templates/a.jpeg" alt="Client 1" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>
+        <div class="av av-2 active-av"><img src="/templates/b.jpeg" alt="Client 2" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>
+        <div class="av av-3"><img src="/templates/c.jpeg" alt="Client 3" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>
+        <div class="av av-4"><img src="/templates/d.jpeg" alt="Client 4" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>
+        <div class="av av-5"><img src="/templates/a.jpeg" alt="Client 5" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>
+        <div class="av av-6"><img src="/templates/b.jpeg" alt="Client 6" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>
       </div>
     </div>
     <div class="testi-content reveal reveal-d1">
       <span class="eyebrow">Client Feedback</span>
       <h2 class="section-title">Great stories from our <span>Clients</span></h2>
-      <blockquote>&ldquo;TalentFlow found us a senior ServiceNow architect within 72 hours. The quality of candidates was exceptional and Angel truly understood our technical requirements.&rdquo;</blockquote>
-      <div class="testi-author">Karim Benneja <span>&mdash; CTO, Enterprise Solutions Ltd</span></div>
-      <a href="/#contact" class="read-more-btn">Read More &rarr;</a>
+      <blockquote>&ldquo;I used TalentFlow to apply for my current position within 72 hours, i get to have my interview. The quality of candidates was exceptional and Angel truly understood our technical requirements.&rdquo;</blockquote>
+      <div class="testi-author">Stiven N. <span>&mdash; ZIBITECH Data Analyst Ltd</span></div>
+      <a href="/#jobs" class="read-more-btn">Browse Jobs &rarr;</a>
     </div>
   </div>
 </section>
@@ -404,10 +607,15 @@ modern_landing_template = (
 <div class="bottom-section" id="contact">
   <div class="bottom-grid">
     <div class="newsletter reveal">
-      <h3>Subscribe our<br>weekly Newsletter</h3>
-      <p>Stay updated with the latest ServiceNow roles, market insights, and recruitment tips from Angel.</p>
-      <input type="email" class="nl-input" placeholder="Your email*">
-      <br><button class="nl-btn" onclick="this.textContent='Subscribed! \u2713'">Subscribe</button>
+      <h3>Your thoughts, feedback<br>and opinions Matters the most</h3>
+      <p>they truly count and shape what we do.<br>
+      Keep informed Stay,tuned with the newest, most up-to-date ServiceNow openings <br>
+      positions, industry trends / market intelligence, and hiring advice / candidate tips from Angel.
+
+      We would love to hear from you. Feel free to share a supportive note comment for the team —
+      <br>your positive words make a difference.
+      </p>
+     
     </div>
     <div class="reveal reveal-d1">
       <div class="contact-card">
@@ -529,6 +737,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:cen
     <li><a href="/#services">Service</a></li>
     <li><a href="/#about">About</a></li>
     <li><a href="/jobs">Jobs</a></li>
+    <li><a href="/ai-dashboard">AI Dashboard</a></li>
     <li><a href="/#contact">Contact</a></li>
   </ul>
   <a href="http://localhost:8003" class="nav-signin">Sign In</a>
@@ -736,6 +945,232 @@ async def hr_login_redirect():
     return RedirectResponse(url="http://localhost:8003", status_code=302)
 
 
+@app.get("/ai-dashboard", response_class=HTMLResponse)
+async def ai_dashboard(request: Request):
+    """AI Dashboard for HR to view screening results and candidate rankings"""
+    # Get all AI screening results
+    ai_screenings = db.get_ai_screening_results()
+    
+    # Get applications with AI scores
+    applications = []
+    for screening in ai_screenings:
+        # Get applicant details
+        applicant = db.get_applicant_with_score(screening['applicant_id'])
+        if applicant:
+            # Get job details
+            job = db.get_job(screening['job_id'])
+            if job:
+                applications.append({
+                    'applicant': applicant,
+                    'job': job,
+                    'ai_screening': screening,
+                    'ai_score': screening['ai_score'],
+                    'ai_status': screening['ai_status'],
+                    'match_details': screening.get('match_details', {}),
+                    'interview_questions': screening.get('interview_questions', [])
+                })
+    
+    # Sort by AI score
+    applications.sort(key=lambda x: x['ai_score'], reverse=True)
+    
+    # Generate HTML
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>AI Recruitment Dashboard - TalentFlow</title>
+        <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+        <style>
+            :root{{--blue:#3b5bdb;--blue-dark:#2846c4;--blue-light:#5c7cfa;--violet:#7048e8;--red:#fa5252;--white:#ffffff;--off:#f8f9fc;--text:#2d3748;--muted:#718096;--border:#e8edf5;--card-sh:0 8px 40px rgba(59,91,219,.10);--card-sh-h:0 16px 60px rgba(59,91,219,.18);}}
+            *{{margin:0;padding:0;box-sizing:border-box;}}
+            body{{font-family:'Nunito Sans',sans-serif;background:var(--off);color:var(--text);}}
+            .header{{background:var(--white);padding:1.5rem 2rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}}
+            .logo{{font-family:'Nunito',sans-serif;font-size:1.5rem;font-weight:900;color:var(--blue);}}
+            .nav-links{{display:flex;gap:1.5rem;}}
+            .nav-links a{{color:var(--text);text-decoration:none;font-weight:600;padding:0.5rem 1rem;border-radius:6px;transition:all 0.2s;}}
+            .nav-links a:hover{{background:var(--off);color:var(--blue);}}
+            .container{{max-width:1400px;margin:0 auto;padding:2rem;}}
+            .dashboard-header{{margin-bottom:2rem;}}
+            .dashboard-title{{font-family:'Nunito',sans-serif;font-size:2.5rem;font-weight:900;color:var(--text);margin-bottom:0.5rem;}}
+            .dashboard-subtitle{{color:var(--muted);font-size:1.1rem;}}
+            .stats-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.5rem;margin-bottom:2rem;}}
+            .stat-card{{background:var(--white);padding:1.5rem;border-radius:12px;box-shadow:var(--card-sh);}}
+            .stat-value{{font-family:'Nunito',sans-serif;font-size:2rem;font-weight:900;color:var(--blue);}}
+            .stat-label{{color:var(--muted);font-weight:600;margin-top:0.5rem;}}
+            .applications-grid{{display:grid;gap:1.5rem;}}
+            .app-card{{background:var(--white);border-radius:12px;box-shadow:var(--card-sh);overflow:hidden;}}
+            .app-header{{padding:1.5rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}}
+            .app-title{{font-family:'Nunito',sans-serif;font-size:1.2rem;font-weight:800;color:var(--text);}}
+            .app-score{{display:flex;align-items:center;gap:0.5rem;}}
+            .score-badge{{font-family:'Nunito',sans-serif;font-size:1.5rem;font-weight:900;padding:0.5rem 1rem;border-radius:8px;}}
+            .score-high{{background:#f0fff4;color:#276749;}}
+            .score-medium{{background:#fff9e6;color:#b7791f;}}
+            .score-low{{background:#fff5f5;color:#c53030;}}
+            .status-badge{{padding:0.3rem 0.8rem;border-radius:20px;font-size:0.8rem;font-weight:700;text-transform:uppercase;}}
+            .status-shortlisted{{background:#f0fff4;color:#276749;}}
+            .status-review{{background:#fff9e6;color:#b7791f;}}
+            .status-rejected{{background:#fff5f5;color:#c53030;}}
+            .app-content{{padding:1.5rem;}}
+            .app-section{{margin-bottom:1.5rem;}}
+            .section-title{{font-weight:700;color:var(--text);margin-bottom:0.5rem;font-size:0.9rem;}}
+            .match-details{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;}}
+            .match-item{{text-align:center;padding:1rem;background:var(--off);border-radius:8px;}}
+            .match-value{{font-family:'Nunito',sans-serif;font-size:1.2rem;font-weight:800;color:var(--blue);}}
+            .match-label{{font-size:0.8rem;color:var(--muted);}}
+            .questions-list{{display:flex;flex-direction:column;gap:0.8rem;}}
+            .question{{padding:1rem;background:var(--off);border-radius:8px;border-left:4px solid var(--blue);}}
+            .question-type{{font-size:0.8rem;font-weight:700;color:var(--blue);text-transform:uppercase;margin-bottom:0.3rem;}}
+            .question-text{{color:var(--text);}}
+            .actions{{display:flex;gap:1rem;margin-top:1rem;}}
+            .btn{{padding:0.6rem 1.2rem;border:none;border-radius:6px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:0.5rem;transition:all 0.2s;}}
+            .btn-primary{{background:var(--blue);color:var(--white);}}
+            .btn-primary:hover{{background:var(--blue-dark);}}
+            .btn-secondary{{background:var(--white);color:var(--text);border:2px solid var(--border);}}
+            .btn-secondary:hover{{background:var(--off);}}
+        </style>
+    </head>
+    <body>
+        <header class="header">
+            <div class="logo">TalentFlow AI</div>
+            <nav class="nav-links">
+                <a href="/">Portal</a>
+                <a href="/ai-dashboard">AI Dashboard</a>
+                <a href="/hr-login">HR Portal</a>
+            </nav>
+        </header>
+        
+        <div class="container">
+            <div class="dashboard-header">
+                <h1 class="dashboard-title">AI Recruitment Dashboard</h1>
+                <p class="dashboard-subtitle">Intelligent candidate screening and ranking powered by AI</p>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">{len(applications)}</div>
+                    <div class="stat-label">Total Applications</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{len([a for a in applications if a['ai_status'] == 'shortlisted'])}</div>
+                    <div class="stat-label">Shortlisted</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{sum(a['ai_score'] for a in applications) / len(applications) if applications else 0:.1f}</div>
+                    <div class="stat-label">Average AI Score</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{len(set(a['job']['id'] for a in applications))}</div>
+                    <div class="stat-label">Job Positions</div>
+                </div>
+            </div>
+            
+            <div class="applications-grid">
+    """
+    
+    # Add application cards
+    for app in applications:
+        score_class = "score-high" if app['ai_score'] >= 70 else "score-medium" if app['ai_score'] >= 50 else "score-low"
+        status_class = f"status-{app['ai_status'].replace('_needed', '').replace('review', 'review')}"
+        
+        html += f"""
+                <div class="app-card">
+                    <div class="app-header">
+                        <div>
+                            <div class="app-title">{app['applicant']['name']} - {app['job']['title']}</div>
+                            <div style="color:var(--muted);font-size:0.9rem;margin-top:0.3rem;">
+                                Applied: {app['applicant'].get('application_date', 'Unknown')}
+                            </div>
+                        </div>
+                        <div class="app-score">
+                            <div class="score-badge {score_class}">{app['ai_score']:.0f}</div>
+                            <div class="status-badge {status_class}">{app['ai_status']}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="app-content">
+                        <div class="app-section">
+                            <div class="section-title">AI Match Analysis</div>
+                            <div class="match-details">
+                                <div class="match-item">
+                                    <div class="match-value">{app['match_details'].get('experience_match', 'N/A')}</div>
+                                    <div class="match-label">Experience Match</div>
+                                </div>
+                                <div class="match-item">
+                                    <div class="match-value">{app['match_details'].get('skill_match', '0/0')}</div>
+                                    <div class="match-label">Skills Match</div>
+                                </div>
+                                <div class="match-item">
+                                    <div class="match-value">{app['match_details'].get('certification_match', '0/0')}</div>
+                                    <div class="match-label">Certificates</div>
+                                </div>
+                                <div class="match-item">
+                                    <div class="match-value">{app['match_details'].get('education_level', 'Unknown')}</div>
+                                    <div class="match-label">Education</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="app-section">
+                            <div class="section-title">Generated Interview Questions</div>
+                            <div class="questions-list">
+        """
+        
+        for i, question in enumerate(app['interview_questions'][:3]):
+            html += f"""
+                                <div class="question">
+                                    <div class="question-type">{question.get('category', 'General')}</div>
+                                    <div class="question-text">{question.get('question', 'No question available')}</div>
+                                </div>
+            """
+        
+        html += f"""
+                            </div>
+                        </div>
+                        
+                        <div class="actions">
+                            <a href="/jobs/{app['job']['id']}" class="btn btn-secondary">View Job</a>
+                            <button class="btn btn-primary" onclick="generateMoreQuestions({app['applicant']['id']}, {app['job']['id']})">
+                                More Questions
+                            </button>
+                        </div>
+                    </div>
+                </div>
+        """
+    
+    html += """
+            </div>
+        </div>
+        
+        <script>
+            async function generateMoreQuestions(applicantId, jobId) {
+                try {
+                    const response = await fetch('/api/ai-generate-questions', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            resume_data: {id: applicantId},
+                            job_requirements: {id: jobId}
+                        })
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('Generated ' + data.questions.length + ' new questions!');
+                        location.reload();
+                    }
+                } catch (error) {
+                    alert('Error generating questions: ' + error.message);
+                }
+            }
+        </script>
+    </body>
+    </html>
+    """
+    
+    return HTMLResponse(content=html)
+
+
 @app.get("/applications-by-email")
 async def get_applications_by_email(email: str):
     try:
@@ -757,11 +1192,88 @@ async def get_applications_by_email(email: str):
         )
 
 
-@app.post("/apply/{job_id}")
-async def submit_application(job_id: int, request: Request):
-    """Handle job application submission"""
+@app.post("/api/ai-screen")
+async def ai_screen_candidate(request: Request):
+    """AI-powered candidate screening based on job requirements"""
     try:
         data = await request.json()
+        resume_data = data.get('resume_data', {})
+        job_requirements = data.get('job_requirements', {})
+        
+        # Perform AI screening
+        screening_result = ai_agent.screen_candidate(resume_data, job_requirements)
+        
+        return JSONResponse(content={
+            'success': True,
+            'screening_result': screening_result
+        })
+        
+    except Exception as e:
+        return JSONResponse(content={
+            'success': False,
+            'error': str(e)
+        }, status_code=500)
+
+
+@app.post("/api/ai-generate-questions")
+async def ai_generate_questions(request: Request):
+    """Generate interview questions based on candidate and job"""
+    try:
+        data = await request.json()
+        resume_data = data.get('resume_data', {})
+        job_requirements = data.get('job_requirements', {})
+        
+        # Generate questions
+        questions = ai_agent.generate_interview_questions(resume_data, job_requirements)
+        
+        return JSONResponse(content={
+            'success': True,
+            'questions': questions
+        })
+        
+    except Exception as e:
+        return JSONResponse(content={
+            'success': False,
+            'error': str(e)
+        }, status_code=500)
+
+
+@app.post("/api/ai-filter-candidates")
+async def ai_filter_candidates(request: Request):
+    """AI-powered candidate filtering and ranking"""
+    try:
+        data = await request.json()
+        candidates = data.get('candidates', [])
+        filters = data.get('filters', {})
+        
+        # Filter and rank candidates
+        filtered_candidates = ai_agent.filter_candidates(candidates, filters)
+        
+        return JSONResponse(content={
+            'success': True,
+            'candidates': filtered_candidates
+        })
+        
+    except Exception as e:
+        return JSONResponse(content={
+            'success': False,
+            'error': str(e)
+        }, status_code=500)
+
+
+@app.post("/apply/{job_id}")
+async def submit_application(job_id: int, request: Request):
+    """Handle job application submission with AI job-specific scoring"""
+    try:
+        data = await request.json()
+        
+        # Get job details for AI scoring
+        job = db.get_job(job_id)
+        if not job:
+            return JSONResponse(content={
+                'success': False,
+                'error': 'Job not found'
+            }, status_code=404)
         
         # Add applicant to database
         applicant_id = db.add_applicant(
@@ -771,16 +1283,56 @@ async def submit_application(job_id: int, request: Request):
             position=data.get('position', '')
         )
         
-        # Score the resume
-        result = scorer.score_resume(data['resume_text'])
+        # Parse resume data for AI scoring
+        resume_text = data['resume_text']
+        resume_data = {
+            'id': applicant_id,
+            'name': data['name'],
+            'email': data['email'],
+            'resume_text': resume_text,
+            'experience_years': _extract_experience_years(resume_text),
+            'skills': _extract_skills(resume_text),
+            'certifications': _extract_certifications(resume_text),
+            'education_level': _extract_education(resume_text)
+        }
         
-        # Save the score
+        # Build job requirements from job data
+        job_requirements = {
+            'id': job_id,
+            'title': job['title'],
+            'department': job['department'],
+            'description': job['description'],
+            'experience_years': _extract_job_experience_requirement(job['description']),
+            'technical_skills': _extract_job_skills(job['description']),
+            'certifications': _extract_job_certifications(job['description'])
+        }
+        
+        # Perform AI screening
+        ai_screening = ai_agent.screen_candidate(resume_data, job_requirements)
+        
+        # Generate interview questions
+        interview_questions = ai_agent.generate_interview_questions(resume_data, job_requirements)
+        
+        # Also get traditional score for comparison
+        traditional_result = scorer.score_resume(resume_text)
+        
+        # Save both scores
         db.save_resume_score(
             applicant_id=applicant_id,
-            resume_text=data['resume_text'],
-            score=result['score'],
-            features=result['features'],
-            recommendations=result['recommendations']
+            resume_text=resume_text,
+            score=traditional_result['score'],
+            features=traditional_result['features'],
+            recommendations=traditional_result['recommendations']
+        )
+        
+        # Save AI screening result
+        db.save_ai_screening(
+            applicant_id=applicant_id,
+            job_id=job_id,
+            ai_score=ai_screening['screening_score'],
+            ai_status=ai_screening['status'],
+            match_details=ai_screening['match_details'],
+            interview_questions=interview_questions
         )
         
         # Create job application
@@ -792,7 +1344,13 @@ async def submit_application(job_id: int, request: Request):
         
         return JSONResponse(content={
             'success': True,
-            'message': 'Application submitted successfully'
+            'message': 'Application submitted successfully',
+            'ai_screening': {
+                'score': ai_screening['screening_score'],
+                'status': ai_screening['status'],
+                'match_details': ai_screening['match_details']
+            },
+            'traditional_score': traditional_result['score']
         })
         
     except Exception as e:
@@ -801,6 +1359,83 @@ async def submit_application(job_id: int, request: Request):
             'error': str(e)
         }, status_code=500)
 
+
+# Helper functions for extracting data from text
+def _extract_experience_years(text: str) -> int:
+    """Extract years of experience from resume text"""
+    import re
+    patterns = [
+        r'(\d+)\+?\s*years?\s*(?:of\s*)?experience',
+        r'experience[:\s]*(\d+)\+?\s*years?',
+        r'(\d+)\+?\s*years?\s*(?:of\s*)?work',
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, text.lower())
+        if match:
+            return int(match.group(1))
+    return 0
+
+def _extract_skills(text: str) -> List[str]:
+    """Extract technical skills from resume text"""
+    common_skills = [
+        'javascript', 'servicenow', 'glide', 'flow designer', 'integration hub',
+        'service portal', 'catalog', 'workflow', 'scripting', 'rest api',
+        'gsoap', 'angular', 'react', 'html', 'css', 'sql', 'git'
+    ]
+    
+    text_lower = text.lower()
+    found_skills = []
+    
+    for skill in common_skills:
+        if skill in text_lower:
+            found_skills.append(skill)
+    
+    return found_skills
+
+def _extract_certifications(text: str) -> List[str]:
+    """Extract ServiceNow certifications from resume text"""
+    certifications = [
+        'CSA', 'CIS', 'CAD', 'CIS-EM', 'CSM', 'CSP', 'CIS-HR', 'CIS-SM'
+    ]
+    
+    text_upper = text.upper()
+    found_certs = []
+    
+    for cert in certifications:
+        if cert in text_upper:
+            found_certs.append(cert)
+    
+    return found_certs
+
+def _extract_education(text: str) -> str:
+    """Extract education level from resume text"""
+    text_lower = text.lower()
+    
+    if 'phd' in text_lower or 'doctorate' in text_lower:
+        return 'PhD'
+    elif 'master' in text_lower or 'm.s.' in text_lower:
+        return 'Master'
+    elif 'bachelor' in text_lower or 'b.s.' in text_lower:
+        return 'Bachelor'
+    else:
+        return 'Unknown'
+
+def _extract_job_experience_requirement(description: str) -> int:
+    """Extract required years of experience from job description"""
+    return _extract_experience_years(description)
+
+def _extract_job_skills(description: str) -> List[str]:
+    """Extract required skills from job description"""
+    return _extract_skills(description)
+
+def _extract_job_certifications(description: str) -> List[str]:
+    """Extract required certifications from job description"""
+    return _extract_certifications(description)
+
+
+# Mount static files for templates
+app.mount("/templates", StaticFiles(directory="templates"), name="templates")
 
 if __name__ == "__main__":
     import uvicorn
