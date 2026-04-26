@@ -1,0 +1,79 @@
+﻿
+database.py:9:    def __init__(self, db_path="resumes.db"):
+database.py:13:    def init_database(self):
+database.py:292:    def create_assessment(self, title: str, job_id: int, description: str = '', 
+database.py:304:    def add_assessment_question(self, assessment_id: int, question_text: str, question_type: str = 
+'multiple_choice',
+database.py:315:    def get_assessment(self, assessment_id: int) -> Dict:
+database.py:326:    def get_assessment_questions(self, assessment_id: int) -> List[Dict]:
+database.py:340:    def get_all_assessments(self) -> List[Dict]:
+database.py:351:    def create_assessment_invite(self, application_id: int, assessment_id: int, token: str, 
+expires_at: str = None) -> int:
+database.py:365:    def get_invite_by_token(self, token: str) -> Dict:
+database.py:382:    def save_assessment_result(self, invite_id: int, application_id: int, assessment_id: int,
+database.py:405:    def get_assessment_result_for_application(self, application_id: int) -> Dict:
+database.py:419:    def get_all_assessment_results(self) -> List[Dict]:
+database.py:436:    def add_applicant(self, name: str, email: str = None, phone: str = None, 
+database.py:453:    def save_resume_score(self, applicant_id: int, resume_text: str, score: float, 
+database.py:472:    def get_applicant_with_score(self, applicant_id: int) -> Optional[Dict]:
+database.py:517:    def get_all_applicants_with_scores(self) -> List[Dict]:
+database.py:547:    def update_applicant_status(self, applicant_id: int, status: str) -> bool:
+database.py:562:    def search_applicants(self, query: str) -> List[Dict]:
+database.py:595:    def add_job(self, title: str, department: str, location: str = None, 
+database.py:612:    def create_job(self, title: str, department: str, employment_type: str = None, 
+database.py:670:    def get_all_jobs(self) -> List[Dict]:
+database.py:692:    def get_job(self, job_id: int) -> Optional[Dict]:
+database.py:708:    def update_job(self, job_id: int, title: str = None, department: str = None, 
+database.py:754:    def delete_job(self, job_id: int) -> bool:
+database.py:775:    def add_job_application(self, job_id: int, applicant_id: int, cover_letter: str = "") -> int:
+database.py:791:    def get_all_applications(self) -> List[Dict]:
+database.py:825:    def check_existing_application(self, email: str, job_id: int) -> Optional[Dict]:
+database.py:846:    def update_application_status(self, application_id: int, status: str) -> bool:
+database.py:871:    def _sync_hired_to_talentflow(self, application_id: int):
+database.py:925:    def get_statistics(self) -> Dict:
+database.py:967:    def add_interview(self, application_id: int, interview_type: str, scheduled_date: str, 
+database.py:989:    def schedule_interview(self, application_id: int, interview_type: str, interview_date: str, 
+database.py:1007:    def get_interviews(self, application_id: int = None) -> List[Dict]:
+database.py:1049:    def update_interview_status(self, interview_id: int, status: str) -> bool:
+database.py:1064:    def cancel_interview(self, interview_id: int) -> bool:
+database.py:1069:    def add_evaluation(self, application_id: int, interviewer_name: str, technical_score: int,
+database.py:1090:    def get_evaluations(self, application_id: int = None) -> List[Dict]:
+database.py:1134:    def add_communication(self, application_id: int, sender_type: str, recipient_email: str,
+database.py:1152:    def get_communications(self, application_id: int = None) -> List[Dict]:
+database.py:1202:    def add_offer_letter(self, application_id: int, offer_type: str, salary: str, start_date: str,
+database.py:1223:    def get_offer_letters(self, application_id: int = None) -> List[Dict]:
+database.py:1265:    def update_offer_status(self, offer_id: int, status: str, response_date: str = None,
+database.py:1286:    def get_applications_by_email(self, email: str) -> List[Dict]:
+database.py:1339:    def get_application_by_id(self, application_id: int) -> Dict:
+database.py:1368:    def get_application_details(self, application_id: int) -> Dict:
+database.py:1372:    def get_applicant_documents(self, applicant_id: int) -> List[Dict]:
+database.py:1392:    def get_document_by_id(self, document_id: int) -> Dict:
+database.py:1408:    def update_communication(self, communication_id: int, subject: str = None, 
+database.py:1441:    def delete_communication(self, communication_id: int) -> bool:
+database.py:1455:    def update_offer_letter(self, offer_id: int, offer_type: str = None, salary: str = None,
+database.py:1504:    def delete_offer_letter(self, offer_id: int) -> bool:
+database.py:1518:    def update_interview(self, interview_id: int, interview_type: str = None,
+database.py:1572:    def delete_interview(self, interview_id: int) -> bool:
+database.py:1586:    def update_evaluation(self, evaluation_id: int, interviewer_name: str = None,
+database.py:1640:    def delete_evaluation(self, evaluation_id: int) -> bool:
+database.py:1654:    def create_job_offer(self, application_id: int, position_title: str, department: str, 
+database.py:1677:    def get_all_offers(self) -> List[Dict]:
+database.py:1707:    def get_offer_details(self, offer_id: int) -> Dict:
+database.py:1734:    def update_offer_status(self, offer_id: int, status: str) -> bool:
+database.py:1748:    def save_report(self, report_type: str, report_data: Dict, format: str, generated_by: str,
+database.py:1784:    def get_report(self, report_id: str) -> Optional[Dict]:
+database.py:1806:    def get_recent_reports(self, limit: int = 10) -> List[Dict]:
+database.py:1830:    def create_scheduled_report(self, name: str, report_type: str, frequency: str, 
+database.py:1864:    def get_scheduled_reports(self) -> List[Dict]:
+database.py:1888:    def delete_scheduled_report(self, schedule_id: str) -> bool:
+database.py:1902:    def get_applicants_for_evaluation(self) -> List[Dict]:
+database.py:1948:    def save_evaluation(self, application_id: int, evaluator_id: int, 
+database.py:2017:    def get_evaluation_by_application(self, application_id: int) -> Optional[Dict]:
+database.py:2041:    def save_contact_message(self, name: str, email: str, subject: str, message: str) -> bool:
+database.py:2060:    def get_contact_messages(self, status: str = None) -> List[Dict]:
+database.py:2083:    def mark_contact_message_read(self, message_id: int) -> bool:
+database.py:2103:    def get_unread_contact_count(self) -> int:
+database.py:2117:    def save_ai_screening(self, applicant_id: int, job_id: int, ai_score: float, 
+database.py:2139:    def get_ai_screening_results(self, applicant_id: int = None, job_id: int = None) -> List[Dict]:
+
+

@@ -1,11 +1,124 @@
 from fastapi import FastAPI, Request, HTTPException, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from database import ResumeDatabase
+import sqlite3
 from hr_base import app, get_current_user, get_base_html, get_end_html, send_email
 import os
 import mimetypes
+import json
+import urllib.request
+import urllib.error
 
 db = ResumeDatabase()
+
+def _hrms_base_url() -> str:
+    hire_url = os.getenv("TALENTFLOW_HRMS_URL", "http://localhost:8000/api/external-recruitment/hire").strip()
+    if "/api/" in hire_url:
+        return hire_url.split("/api/")[0]
+    return hire_url.rstrip("/")
+
+def _hrms_headers() -> dict:
+    token = os.getenv("TALENTFLOW_HRMS_TOKEN", "talentflow_secret_token_123").strip()
+    # We support either an external-token style header or a Bearer token depending on HRMS setup.
+    return {
+        "Accept": "application/json",
+        "X-Recruitment-Token": token,
+        "Authorization": f"Bearer {token}",
+    }
+
+def _fetch_hrms_list(url: str):
+    req = urllib.request.Request(url, headers=_hrms_headers(), method="GET")
+    with urllib.request.urlopen(req, timeout=8) as resp:
+        body = resp.read().decode("utf-8", errors="replace")
+        return json.loads(body)
+
+
+@app.get("/api/hrms-metadata")
+async def hrms_metadata(request: Request):
+    """Fetch departments, positions, and shifts from Laravel HRMS (best-effort)."""
+    current_user = get_current_user(request)
+    if not current_user:
+        return JSONResponse(content={"success": False, "error": "Unauthorized"}, status_code=401)
+
+    base = _hrms_base_url()
+
+    # Allow explicit override per resource.
+    dep_url = os.getenv("TALENTFLOW_HRMS_DEPARTMENTS_URL", "").strip()
+    pos_url = os.getenv("TALENTFLOW_HRMS_POSITIONS_URL", "").strip()
+    shf_url = os.getenv("TALENTFLOW_HRMS_SHIFTS_URL", "").strip()
+    meta_url = os.getenv("TALENTFLOW_HRMS_METADATA_URL", f"{base}/api/external-recruitment/metadata").strip()
+
+    defaults = {
+        "departments": ["Engineering", "Marketing", "Sales", "Human Resources", "Finance", "Operations", "Customer Service", "Product", "Design"],
+        "positions": [],
+        "shifts": ["Day Shift", "Night Shift", "Flexible", "On-call"],
+    }
+
+    def normalize_list(payload, key_guess: str):
+        if payload is None:
+            return []
+        if isinstance(payload, list):
+            return payload
+        if isinstance(payload, dict):
+            for k in (key_guess, "data", "items", "results"):
+                v = payload.get(k)
+                if isinstance(v, list):
+                    return v
+        return []
+
+    try:
+        departments = defaults["departments"]
+        positions = defaults["positions"]
+        shifts = defaults["shifts"]
+
+        # Prefer a single metadata endpoint (recommended); fall back to per-resource URLs if provided.
+        try:
+            meta_payload = _fetch_hrms_list(meta_url)
+            if isinstance(meta_payload, dict) and meta_payload.get("success") is True:
+                meta_deps = normalize_list(meta_payload, "departments")
+                meta_pos  = normalize_list(meta_payload, "positions")
+                meta_shf  = normalize_list(meta_payload, "shifts")
+                if meta_deps: departments = meta_deps
+                if meta_pos:  positions   = meta_pos
+                if meta_shf:  shifts      = meta_shf
+        except Exception:
+            pass
+
+        if dep_url:
+            try:
+                departments_payload = _fetch_hrms_list(dep_url)
+                departments_list = normalize_list(departments_payload, "departments")
+                if departments_list:
+                    departments = departments_list
+            except Exception:
+                pass
+
+        if pos_url:
+            try:
+                positions_payload = _fetch_hrms_list(pos_url)
+                positions_list = normalize_list(positions_payload, "positions")
+                if positions_list:
+                    positions = positions_list
+            except Exception:
+                pass
+
+        if shf_url:
+            try:
+                shifts_payload = _fetch_hrms_list(shf_url)
+                shifts_list = normalize_list(shifts_payload, "shifts")
+                if shifts_list:
+                    shifts = shifts_list
+            except Exception:
+                pass
+
+        return JSONResponse(content={
+            "success": True,
+            "departments": departments,
+            "positions": positions,
+            "shifts": shifts,
+        })
+    except Exception as e:
+        return JSONResponse(content={"success": False, "error": str(e), **defaults}, status_code=200)
 
 
 @app.get("/jobs", response_class=HTMLResponse)
@@ -97,8 +210,8 @@ async def job_management(request: Request):
   <div style="overflow-x:auto;">
     <table class="data-table" id="appsTable">
       <thead><tr>
-        <th>Applicant</th><th>Job Title</th><th>Department</th>
-        <th>Score</th><th>Applied</th><th>Status</th><th>Actions</th>
+        <th>Applicant</th><th>Job Title</th><th>Dept</th>
+        <th>Keyword Score</th><th>AI Score</th><th>AI Status</th><th>Applied</th><th>Status</th><th>Actions</th>
       </tr></thead>
       <tbody id="appsBody">{app_rows}</tbody>
     </table>
@@ -117,11 +230,13 @@ async def job_management(request: Request):
     </div>
     <div class="form-grid">
       <div class="form-group full"><label class="form-label">Job Title *</label>
-        <input class="form-ctrl" type="text" id="jobTitle" placeholder="e.g. Senior Software Engineer"></div>
+        <select class="form-ctrl" id="jobTitle"></select></div>
       <div class="form-group"><label class="form-label">Department *</label>
-        <input class="form-ctrl" type="text" id="jobDepartment"></div>
+        <select class="form-ctrl" id="jobDepartment"></select></div>
       <div class="form-group"><label class="form-label">Location</label>
         <input class="form-ctrl" type="text" id="jobLocation" placeholder="City or Remote"></div>
+      <div class="form-group"><label class="form-label">Work Mode (Shift)</label>
+        <select class="form-ctrl" id="jobWorkMode"></select></div>
       <div class="form-group full"><label class="form-label">Salary</label>
         <input class="form-ctrl" type="text" id="jobSalary" placeholder="e.g. $80,000 – $120,000"></div>
       <div class="form-group full"><label class="form-label">Job Description</label>
@@ -192,6 +307,37 @@ async def job_management(request: Request):
 
 <script>
 let editingJobId = null;
+let HRMS_META = null;
+
+function _opt(label, value) {{
+  const o = document.createElement('option');
+  o.value = value;
+  o.textContent = label;
+  return o;
+}}
+
+function _fillSelect(selId, items, placeholder) {{
+  const sel = document.getElementById(selId);
+  if(!sel) return;
+  sel.innerHTML = '';
+  sel.appendChild(_opt(placeholder || 'Select…', ''));
+  (items || []).forEach(it => {{
+    const name = (typeof it === 'string') ? it : (it.name || it.title || it.label || it.value || '');
+    const val  = (typeof it === 'string') ? it : (it.name || it.title || it.label || it.value || '');
+    if(name) sel.appendChild(_opt(name, val));
+  }});
+}}
+
+async function loadHrmsMeta() {{
+  if (HRMS_META) return HRMS_META;
+  try {{
+    const r = await fetch('/api/hrms-metadata');
+    const d = await r.json();
+    if(d && d.success) HRMS_META = d;
+  }} catch(e) {{}}
+  HRMS_META = HRMS_META || {{success:false, departments:[], positions:[], shifts:[]}};
+  return HRMS_META;
+}}
 
 // ── TAB SWITCH ─────────────────────────────────────────
 function switchTab(name, btn) {{
@@ -221,10 +367,16 @@ function showAddJobForm() {{
   editingJobId = null;
   document.getElementById('jobModalTitle').textContent = 'Add New Job';
   document.getElementById('jobSubmitBtn').textContent  = 'Add Job';
-  ['jobTitle','jobDepartment','jobLocation','jobSalary','jobDescription','jobRequirements'].forEach(id=>{{
-    document.getElementById(id).value = '';
+  ['jobTitle','jobDepartment','jobLocation','jobWorkMode','jobSalary','jobDescription','jobRequirements'].forEach(id=>{{
+    const el = document.getElementById(id);
+    if (el) el.value = '';
   }});
   document.getElementById('jobStatus').value = 'active';
+  loadHrmsMeta().then(meta => {{
+    _fillSelect('jobDepartment', meta.departments || [], 'Select Department');
+    _fillSelect('jobTitle', meta.positions || [], 'Select Position');
+    _fillSelect('jobWorkMode', meta.shifts || [], 'Select Shift');
+  }});
   document.getElementById('jobModal').style.display = 'flex';
 }}
 function closeJobModal() {{ document.getElementById('jobModal').style.display = 'none'; }}
@@ -238,8 +390,14 @@ function editJob(id) {{
       const j = d.job;
       document.getElementById('jobModalTitle').textContent = 'Edit Job';
       document.getElementById('jobSubmitBtn').textContent  = 'Update Job';
-      document.getElementById('jobTitle').value        = j.title       || '';
-      document.getElementById('jobDepartment').value   = j.department  || '';
+      loadHrmsMeta().then(meta => {{
+        _fillSelect('jobDepartment', meta.departments || [], 'Select Department');
+        _fillSelect('jobTitle', meta.positions || [], 'Select Position');
+        _fillSelect('jobWorkMode', meta.shifts || [], 'Select Shift');
+        document.getElementById('jobTitle').value        = j.title       || '';
+        document.getElementById('jobDepartment').value   = j.department  || '';
+        document.getElementById('jobWorkMode').value     = j.work_mode   || '';
+      }});
       document.getElementById('jobLocation').value     = j.location    || '';
       document.getElementById('jobSalary').value       = j.salary      || '';
       document.getElementById('jobDescription').value  = j.description || '';
@@ -256,6 +414,7 @@ function submitJob() {{
     title:       document.getElementById('jobTitle').value,
     department:  document.getElementById('jobDepartment').value,
     location:    document.getElementById('jobLocation').value,
+    work_mode:   document.getElementById('jobWorkMode').value,
     salary:      document.getElementById('jobSalary').value,
     description: document.getElementById('jobDescription').value,
     requirements:document.getElementById('jobRequirements').value,
@@ -285,7 +444,14 @@ function submitJob() {{
 }}
 
 function deleteJob(id) {{
-  if (!confirm('Delete this job? All related applications will also be removed.')) return;
+  window.tfDialog.confirm({
+    title: 'Delete Job',
+    message: 'Delete this job? All related applications will also be removed.',
+    okText: 'Delete',
+    cancelText: 'Cancel',
+    danger: true
+  }).then(ok => {{
+    if(!ok) return;
   fetch('/api/delete-job', {{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{job_id:id}})}})
     .then(r => r.json())
     .then(d => {{
@@ -293,9 +459,9 @@ function deleteJob(id) {{
       else showToast('Error', d.error||'Failed.', 'error');
     }})
     .catch(() => showToast('Error','Network error.','error'));
+  }});
 }}
 
-// ── APPLICATION MODAL ─────────────────────────────────
 function viewApplication(id) {{
   const modal = document.getElementById('appModal');
   document.getElementById('appModalContent').innerHTML =
@@ -310,30 +476,87 @@ function viewApplication(id) {{
       const sc = a.resume_score ? parseFloat(a.resume_score).toFixed(1) : null;
       const scCol = sc>=80?'var(--green)':sc>=60?'#C67C00':sc?'var(--red)':'var(--ink3)';
       const scBg  = sc>=80?'#E8F8F0':sc>=60?'var(--amber-lt)':sc?'var(--red-lt)':'var(--bg)';
-      document.getElementById('appModalContent').innerHTML = `
+      const docs = d.documents || [];
+      let docsHtml = '';
+      if (docs.length > 0) {{
+        docsHtml = docs.map(doc => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px;background:var(--bg);border-radius:8px;margin-bottom:6px;">
+            <span style="font-size:12px;color:var(--ink2);">${{escHtml(doc.filename)}}</span>
+            <a href="/view-document/${{doc.id}}" target="_blank" class="btn btn-sm btn-outline" style="padding:2px 8px;font-size:11px;">View PDF</a>
+          </div>
+        `).join('');
+      }} else {{
+        docsHtml = '<p style="font-size:12px;color:var(--ink3);">No documents uploaded.</p>';
+      }}
+
+        let actionsHtml = '';
+        if (a.status === 'pending') {{
+          actionsHtml += `<button class="btn btn-primary" onclick="updateApplicationStatus(${{id}}, 'approved')">Approve</button>`;
+          actionsHtml += `<button class="btn btn-danger" onclick="updateApplicationStatus(${{id}}, 'rejected')">Reject</button>`;
+        }} else if (a.status === 'approved') {{
+          actionsHtml += `<a href="/assessments" class="btn btn-primary">Go to Assessments</a>`;
+        }} else if (a.status === 'assessment_passed') {{
+          actionsHtml += `<button class="btn btn-primary" onclick="scheduleInterview(${{id}})">Schedule Interview</button>`;
+        }} else if (a.status === 'interview_scheduled') {{
+          actionsHtml += `<a href="/evaluations" class="btn btn-primary">Go to Evaluations</a>`;
+        }} else if (a.status === 'interview_passed' || a.status === 'offer_accepted') {{
+          // If they passed interview, they go to evaluation, then offer, then hire.
+          // The user said: "if you pass interview, you get to be evaluated, and you will be hired or rejected."
+          actionsHtml += `<button class="btn btn-success" onclick="updateApplicationStatus(${{id}}, 'hired')">Hire Now</button>`;
+        }}
+
+        document.getElementById('appModalContent').innerHTML = `
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
           <div style="width:44px;height:44px;border-radius:11px;background:linear-gradient(135deg,#4776E6,#8E54E9);
             flex-shrink:0;display:flex;align-items:center;justify-content:center;
-            font-family:'Sora',sans-serif;font-weight:800;font-size:16px;color:#fff;">
-            ${{(a.applicant_name||'?')[0].toUpperCase()}}
+            font-family:\'Sora\',sans-serif;font-weight:800;font-size:16px;color:#fff;">
+            ${{(a.applicant_name||\'?\')[0].toUpperCase()}}
           </div>
           <div>
-            <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:15px;color:var(--ink);">${{escHtml(a.applicant_name||'N/A')}}</div>
-            <div style="font-size:12.5px;color:var(--ink3);">${{escHtml(a.applicant_email||'')}}</div>
+            <div style="font-family:\'Sora\',sans-serif;font-weight:700;font-size:15px;color:var(--ink);">${{escHtml(a.applicant_name||\'N/A\')}}</div>
+            <div style="font-size:12.5px;color:var(--ink3);">${{escHtml(a.applicant_email||\'\')}}</div>
           </div>
-          ${{sc ? `<div style="margin-left:auto;background:${{scBg}};border-radius:50%;width:50px;height:50px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <span style="font-family:'Sora',sans-serif;font-weight:800;font-size:14px;color:${{scCol}};">${{sc}}</span></div>` : ''}}
+          <div style="margin-left:auto;display:flex;gap:10px;align-items:center;">
+            ${{a.ai_score ? `
+            <div style="text-align:center;">
+              <div style="font-size:9px;color:var(--ink3);text-transform:uppercase;">AI Score</div>
+              <div style="font-family:\'Sora\',sans-serif;font-weight:800;font-size:14px;color:var(--blue);">${{parseFloat(a.ai_score).toFixed(1)}}</div>
+            </div>` : ''}}
+            ${{sc ? `<div style="background:${{scBg}};border-radius:50%;width:50px;height:50px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <span style="font-family:\'Sora\',sans-serif;font-weight:800;font-size:14px;color:${{scCol}};">${{sc}}</span></div>` : ''}}
+          </div>
         </div>
-        <table style="width:100%;border-collapse:collapse;">
-          ${{_dtrow('Position', a.job_title||'—')}}
-          ${{_dtrow('Department', a.department||'—')}}
-          ${{_dtrow('Applied', (a.application_date||'—').toString().slice(0,10))}}
-          ${{_dtrow('Status', `<span class="badge ${{_appBadge(a.status)}}">${{(a.status||'pending').charAt(0).toUpperCase()+(a.status||'pending').slice(1)}}</span>`)}}
-          ${{a.cover_letter ? _dtrow('Cover Letter', `<div style="max-height:100px;overflow-y:auto;font-size:13px;color:var(--ink3);line-height:1.6;">${{escHtml(a.cover_letter)}}</div>`) : ''}}
+        <table style="width:100%;border-collapse:collapse;margin-bottom:15px;">
+          ${{_dtrow(\'Position\', a.job_title||\'—\')}}
+          ${{_dtrow(\'Department\', a.department||\'—\')}}
+          ${{_dtrow(\'Applied\', (a.application_date||\'—\').toString().slice(0,10))}}
+          ${{_dtrow(\'Status\', `<span class="badge ${{_appBadge(a.status)}}">${{(a.status||\'pending\').charAt(0).toUpperCase()+(a.status||\'pending\').slice(1).replace(\'_\',\' \')}}</span>`)}}
         </table>
+        
+        <div style="margin-bottom:15px;">
+          <h4 style="font-size:12px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;">Documents</h4>
+          ${{docsHtml}}
+        </div>
+
+        ${{a.cover_letter ? `
+        <div style="margin-bottom:15px;">
+          <h4 style="font-size:12px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;">Cover Letter</h4>
+          <div style="background:var(--bg);padding:12px;border-radius:8px;font-size:13px;color:var(--ink2);line-height:1.6;max-height:120px;overflow-y:auto;white-space:pre-wrap;">
+            ${{escHtml(a.cover_letter)}}
+          </div>
+        </div>` : ''}}
+        
+        ${{a.resume_text ? `
+        <div style="margin-bottom:15px;">
+          <h4 style="font-size:12px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;">Resume Text (Parsed)</h4>
+          <div style="background:var(--bg);padding:12px;border-radius:8px;font-size:13px;color:var(--ink2);line-height:1.6;max-height:200px;overflow-y:auto;white-space:pre-wrap;">
+            ${{escHtml(a.resume_text)}}
+          </div>
+        </div>` : ''}}
+
         <div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;">
-          <a href="/communications?app_id=${{id}}" class="btn btn-primary"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Send Email</a>
-          <a href="/interviews?application=${{id}}" class="btn btn-outline"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Schedule Interview</a>
+          ${{actionsHtml}}
+          <a href="/communications?app_id=${{id}}" class="btn btn-outline">Email</a>
           <button class="btn btn-outline" onclick="closeAppModal()">Close</button>
         </div>`;
     }})
@@ -349,9 +572,21 @@ function _dtrow(label, val) {{
 }}
 
 function _appBadge(s) {{
-  return {{pending:'badge-amber',reviewing:'badge-teal',interview:'badge-blue',
-    offered:'badge-green',rejected:'badge-red',hired:'badge-green',
-    shortlisted:'badge-green'}}[(s||'').toLowerCase()] || 'badge-neutral';
+  return {{
+    pending:             \'badge-amber\',
+    shortlisted:         \'badge-green\',
+    rejected:            \'badge-red\',
+    assessment_pending:  \'badge-blue\',
+    assessment_passed:   \'badge-green\',
+    assessment_failed:   \'badge-red\',
+    interview_scheduled: \'badge-blue\',
+    interview_passed:    \'badge-green\',
+    interview_failed:    \'badge-red\',
+    offer_made:          \'badge-blue\',
+    offer_accepted:      \'badge-green\',
+    offer_rejected:      \'badge-red\',
+    hired:               \'badge-green\'
+  }}[(s||\'\').toLowerCase()] || \'badge-neutral\';
 }}
 
 // ── STATUS UPDATE ─────────────────────────────────────
@@ -422,13 +657,20 @@ _STATUS_JOB = {
     "closed":   ("badge-red",    "Closed"),
 }
 _STATUS_APP = {
-    "pending":    ("badge-amber",   "Pending"),
-    "reviewing":  ("badge-teal",    "Reviewing"),
-    "interview":  ("badge-blue",    "Interview"),
-    "offered":    ("badge-green",   "Offered"),
-    "rejected":   ("badge-red",     "Rejected"),
-    "hired":      ("badge-green",   "Hired"),
-    "shortlisted":("badge-green",   "Shortlisted"),
+    "pending":            ("badge-amber",   "Pending"),
+    "approved":           ("badge-green",   "Approved"),
+    "rejected":           ("badge-red",     "Rejected"),
+    "assessment_sent":    ("badge-blue",    "Assessment Sent"),
+    "assessment_passed":  ("badge-green",   "Assessment Passed"),
+    "assessment_failed":  ("badge-red",     "Assessment Failed"),
+    "interview_scheduled":("badge-blue",    "Interviewing"),
+    "interview_passed":   ("badge-green",   "Passed Interview"),
+    "hiring_approved":    ("badge-teal",    "Hiring Approved"),
+    "interview_failed":   ("badge-red",     "Interview Failed"),
+    "offer_sent":         ("badge-blue",    "Offer Sent"),
+    "offer_accepted":     ("badge-green",   "Offer Accepted"),
+    "offer_rejected":     ("badge-red",     "Offer Rejected"),
+    "hired":              ("badge-purple",  "Hired"),
 }
 
 _BADGE_STYLES = {
@@ -470,7 +712,7 @@ def _build_job_rows(jobs: list) -> str:
 
 def _build_app_rows(applications: list) -> str:
     if not applications:
-        return '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--ink3);">No applications yet.</td></tr>'
+        return '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--ink3);">No applications yet.</td></tr>'
     rows = ""
     for a in applications:
         score = a.get("resume_score")
@@ -490,11 +732,43 @@ def _build_app_rows(applications: list) -> str:
         email = (a.get("applicant_email") or "")
         initial = name[0].upper()
 
-        # Build status select
+        # Build status select (Strictly Approve/Reject for pending)
         opts = ""
-        for val, (_, lbl) in _STATUS_APP.items():
-            sel = "selected" if val == status else ""
-            opts += f'<option value="{val}" {sel}>{lbl}</option>'
+        if status == "pending":
+            opts = f"""
+                <option value="pending" selected>Pending</option>
+                <option value="approved">Approve</option>
+                <option value="rejected">Reject</option>
+            """
+        else:
+            # For other statuses, just show the current one and a Reject option
+            lbl = _STATUS_APP.get(status, ("badge-neutral", status.title()))[1]
+            opts = f'<option value="{status}" selected>{lbl}</option>'
+            
+            # Workflow transitions
+            if status == "approved":
+                opts += '<option value="assessment_sent">Send Assessment</option>'
+            elif status == "assessment_passed":
+                opts += '<option value="interview_scheduled">Schedule Interview</option>'
+            elif status == "hiring_approved":
+                opts += '<option value="offer_sent">Prepare Offer</option>'
+            elif status == "offer_accepted":
+                opts += '<option value="hired">Finalize Hire</option>'
+                
+            if status not in ["rejected", "hired"]:
+                opts += '<option value="rejected">Reject</option>'
+
+        # AI Score display
+        ai_score = a.get("ai_score")
+        if ai_score is not None:
+            asf = float(ai_score)
+            ascls = "badge-green" if asf >= 75 else "badge-amber" if asf >= 50 else "badge-red"
+            ai_score_html = _badge(ascls, f"{asf:.1f}")
+        else:
+            ai_score_html = _badge("badge-neutral", "—")
+            
+        ai_status = (a.get("ai_status") or "pending").title()
+        ai_status_html = _badge("badge-blue" if ai_status.lower() == "recommended" else "badge-neutral", ai_status)
 
         rows += f"""<tr>
           <td>
@@ -512,13 +786,15 @@ def _build_app_rows(applications: list) -> str:
           <td>{a.get('job_title','—')}</td>
           <td>{a.get('department','—')}</td>
           <td>{score_html}</td>
+          <td>{ai_score_html}</td>
+          <td>{ai_status_html}</td>
           <td style="white-space:nowrap;">{date}</td>
           <td>
             <select class="status-sel" onchange="updateApplicationStatus({aid}, this.value)">{opts}</select>
           </td>
           <td><div class="action-grp">
             <button class="btn btn-outline btn-sm" onclick="viewApplication({aid})">View</button>
-            <button class="btn btn-success btn-sm" onclick="scheduleInterview({aid})"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Interview</button>
+            {f'<a href="/evaluations" class="btn btn-primary btn-sm" style="text-decoration:none;">Evaluate</a>' if status == 'interview_passed' else ''}
           </div></td>
         </tr>"""
     return rows
@@ -659,9 +935,17 @@ async def add_job(request: Request):
         for f in ['title', 'department']:
             if not data.get(f):
                 return JSONResponse(content={"success": False, "error": f"Missing: {f}"}, status_code=400)
-        job_id = db.add_job(title=data['title'], department=data['department'],
-                            location=data.get('location',''), salary=data.get('salary',''),
-                            description=data.get('description',''), requirements=data.get('requirements',''))
+        # Use extended job creator so we can persist work_mode if present.
+        job_id = db.create_job(
+            title=data['title'],
+            department=data['department'],
+            location=data.get('location',''),
+            work_mode=data.get('work_mode') or None,
+            salary_min=None,
+            salary_max=None,
+            job_description=data.get('description',''),
+            requirements=data.get('requirements',''),
+        )
         return JSONResponse(content={"success": True, "job_id": job_id})
     except Exception as e:
         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
@@ -680,6 +964,19 @@ async def update_job(request: Request):
                                 department=data.get("department"), location=data.get("location"),
                                 salary=data.get("salary"), description=data.get("description"),
                                 requirements=data.get("requirements"), status=data.get("status"))
+        # Best-effort: persist work_mode when present (and column exists).
+        if data.get("work_mode") is not None:
+            try:
+                conn = sqlite3.connect(db.db_path)
+                cur = conn.cursor()
+                cur.execute("PRAGMA table_info(jobs)")
+                cols = [r[1] for r in cur.fetchall()]
+                if "work_mode" in cols:
+                    cur.execute("UPDATE jobs SET work_mode = ? WHERE id = ?", (data.get("work_mode"), data["job_id"]))
+                    conn.commit()
+                conn.close()
+            except Exception:
+                pass
         return JSONResponse(content={"success": True} if success else {"success": False, "error": "Failed"})
     except Exception as e:
         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)

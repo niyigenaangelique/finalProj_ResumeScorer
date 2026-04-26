@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offer Management — TalentFlow HR</title>
+  
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg:        #EEF2F7;
+  --white:     #FFFFFF;
+  --blue:      #3B6FE8;
+  --blue-lt:   #EBF0FD;
+  --red:       #F05252;
+  --red-lt:    #FEF0F0;
+  --teal:      #0BB5B5;
+  --teal-lt:   #E6F9F9;
+  --amber:     #F4A83A;
+  --amber-lt:  #FEF5E7;
+  --green:     #27AE60;
+  --ink:       #1A1D2E;
+  --ink2:      #4A5066;
+  --ink3:      #8A8FA8;
+  --border:    #E8EBF4;
+  --radius:    14px;
+  --radius-sm: 9px;
+  --shadow:    0 2px 12px rgba(30,40,90,0.07);
+  --shadow-md: 0 6px 28px rgba(30,40,90,0.11);
+}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ══ TOP NAV ══════════════════════════════════════════ */
+.topnav {
+  position: sticky; top: 0; z-index: 200;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  height: 64px;
+  display: flex; align-items: center;
+  padding: 0 28px; gap: 0;
+  box-shadow: 0 1px 0 var(--border), var(--shadow);
+  overflow-x: auto;
+}
+.topnav::-webkit-scrollbar { display: none; }
+
+.tn-brand {
+  display: flex; align-items: center; gap: 9px;
+  text-decoration: none; margin-right: 32px; flex-shrink: 0;
+}
+.tn-logo {
+  width: 34px; height: 34px; border-radius: 9px;
+  background: linear-gradient(135deg, #3B6FE8, #6B4FDB);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 14px; font-weight: 800;
+  font-family: 'Sora', sans-serif;
+  box-shadow: 0 3px 10px rgba(59,111,232,0.35);
+  flex-shrink: 0;
+}
+.tn-name {
+  font-family: 'Sora', sans-serif; font-size: 16px; font-weight: 700;
+  color: var(--ink); letter-spacing: -0.01em; white-space: nowrap;
+}
+.tn-name span { color: var(--blue); }
+
+.tn-links {
+  display: flex; align-items: center; gap: 2px; flex: 1;
+  overflow-x: auto;
+}
+.tn-links::-webkit-scrollbar { display: none; }
+
+.tn-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 13px; border-radius: 8px;
+  font-size: 13.5px; font-weight: 500; color: var(--ink2);
+  text-decoration: none; cursor: pointer;
+  border: none; background: transparent;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.15s; white-space: nowrap; flex-shrink: 0;
+}
+.tn-link:hover { background: var(--bg); color: var(--ink); }
+.tn-link.active { background: var(--blue-lt); color: var(--blue); font-weight: 600; }
+
+.tn-sep {
+  width: 1px; height: 26px; background: var(--border);
+  margin: 0 8px; flex-shrink: 0;
+}
+.tn-right {
+  display: flex; align-items: center; gap: 10px;
+  margin-left: auto; flex-shrink: 0;
+  position: relative;
+}
+.tn-search {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: 9px; padding: 7px 14px; width: 220px;
+  transition: border-color 0.15s;
+}
+.tn-search:focus-within { border-color: var(--blue); background: var(--white); }
+.tn-search input {
+  border: none; background: transparent; outline: none;
+  font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: var(--ink); width: 100%;
+}
+.tn-search input::placeholder { color: var(--ink3); }
+
+.notif-btn {
+  width: 36px; height: 36px; border-radius: 9px;
+  border: 1.5px solid var(--border); background: var(--white);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  position: relative; transition: border-color 0.15s;
+}
+.notif-btn:hover { border-color: var(--blue); }
+.notif-dot {
+  position: absolute; top: 6px; right: 6px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--red); border: 1.5px solid var(--white);
+}
+.notif-dropdown {
+  position: fixed; top: 70px; right: 30px;
+  background: var(--white); border: 3px solid var(--blue);
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  min-width: 320px; max-width: 400px;
+  z-index: 99999; display: none;
+  padding: 20px;
+}
+.notif-dropdown.show {
+  display: block;
+}
+.notif-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+}
+.notif-header h4 {
+  margin: 0; font-size: 0.9rem; font-weight: 600;
+  color: var(--text);
+}
+.notif-clear {
+  background: none; border: none; color: var(--muted);
+  font-size: 0.75rem; cursor: pointer; padding: 4px 8px;
+  border-radius: 4px; transition: all 0.15s;
+}
+.notif-clear:hover {
+  background: var(--off); color: var(--red);
+}
+.notif-list {
+  max-height: 300px; overflow-y: auto;
+}
+.notif-empty {
+  padding: 20px; text-align: center; color: var(--muted);
+  font-size: 0.85rem;
+}
+.notif-item {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.15s;
+}
+.notif-item:hover {
+  background: var(--off);
+}
+.notif-item.unread {
+  background: #f0f9ff; border-left: 3px solid var(--blue);
+}
+.notif-title {
+  font-size: 0.85rem; font-weight: 600; color: var(--text);
+  margin-bottom: 4px;
+}
+.notif-message {
+  font-size: 0.8rem; color: var(--muted);
+  line-height: 1.4;
+}
+.notif-time {
+  font-size: 0.75rem; color: var(--muted);
+  margin-top: 4px;
+}
+.user-pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 12px 4px 4px;
+  border: 1.5px solid var(--border); border-radius: 20px;
+  background: var(--white); cursor: pointer;
+  transition: border-color 0.15s;
+}
+.user-pill:hover { border-color: var(--blue); }
+.user-av {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: linear-gradient(135deg, #3B6FE8, #6B4FDB);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Sora', sans-serif; font-weight: 700; font-size: 11px; color: #fff;
+}
+.user-name { font-size: 13px; font-weight: 600; color: var(--ink); }
+.logout-link {
+  font-size: 12px; color: var(--red); font-weight: 600;
+  text-decoration: none; padding: 5px 10px; border-radius: 7px;
+  border: 1.5px solid rgba(240,82,82,0.2);
+  transition: all 0.15s; background: var(--red-lt);
+}
+.logout-link:hover { background: var(--red); color: #fff; }
+
+/* ══ LAYOUT ══════════════════════════════════════════ */
+.main {
+  padding: 28px 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ══ CARDS ══════════════════════════════════════════ */
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.card-hd {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-title {
+  font-family: 'Sora', sans-serif;
+  font-size: 15px; font-weight: 700; color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.card-tag {
+  font-size: 12px; font-weight: 600; color: var(--ink3);
+  background: var(--bg); padding: 4px 10px; border-radius: 20px;
+  border: 1px solid var(--border);
+}
+.card-bd { padding: 20px 22px; }
+
+/* ══ STAT TILES ══════════════════════════════════════ */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px; margin-bottom: 24px;
+}
+.stat-tile {
+  border-radius: var(--radius); padding: 20px 22px;
+  display: flex; align-items: center; gap: 16px;
+  position: relative; overflow: hidden;
+}
+.stat-tile:nth-child(1) { background: linear-gradient(135deg,#4776E6,#8E54E9); }
+.stat-tile:nth-child(2) { background: linear-gradient(135deg,#F05252,#FF7B7B); }
+.stat-tile:nth-child(3) { background: linear-gradient(135deg,#0BB5B5,#36D1C4); }
+.stat-tile:nth-child(4) { background: linear-gradient(135deg,#F4A83A,#F7CB6A); }
+.stat-tile::before {
+  content:''; position:absolute; top:-30px; right:-30px;
+  width:100px; height:100px; border-radius:50%;
+  background:rgba(255,255,255,0.12); pointer-events:none;
+}
+.stat-icon {
+  width:48px; height:48px; border-radius:12px;
+  background:rgba(255,255,255,0.2);
+  display:flex; align-items:center; justify-content:center;
+  font-size:22px; flex-shrink:0;
+}
+.stat-body { flex:1; }
+.stat-label { font-size:12px; color:rgba(255,255,255,0.75); font-weight:500; margin-bottom:3px; }
+.stat-value {
+  font-family:'Sora',sans-serif; font-size:30px; font-weight:700;
+  color:#fff; line-height:1; letter-spacing:-0.02em;
+}
+
+/* ══ BUTTONS ══════════════════════════════════════════ */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 18px; border-radius: 9px; border: none;
+  font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600;
+  cursor: pointer; text-decoration: none; transition: all 0.15s; white-space: nowrap;
+}
+.btn-primary {
+  background: var(--blue); color: #fff;
+  box-shadow: 0 3px 10px rgba(59,111,232,0.3);
+}
+.btn-primary:hover { box-shadow:0 5px 18px rgba(59,111,232,0.4); transform:translateY(-1px); }
+.btn-outline {
+  background: var(--white); color: var(--ink2);
+  border: 1.5px solid var(--border);
+}
+.btn-outline:hover { border-color:var(--blue); color:var(--blue); }
+.btn-success { background: var(--green); color: #fff; }
+.btn-success:hover { filter:brightness(1.1); transform:translateY(-1px); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-danger:hover { filter:brightness(1.1); transform:translateY(-1px); }
+.btn-warning { background: var(--amber); color: #fff; }
+.btn-warning:hover { filter:brightness(1.1); transform:translateY(-1px); }
+.btn-sm { padding:5px 12px; font-size:12px; border-radius:7px; }
+
+/* ══ TABLES ══════════════════════════════════════════ */
+.data-table { width:100%; border-collapse:collapse; }
+.data-table th {
+  padding:11px 16px; text-align:left;
+  font-size:11.5px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase;
+  color:var(--ink3); background:var(--bg);
+  border-bottom:1px solid var(--border); white-space:nowrap;
+}
+.data-table td {
+  padding:13px 16px; border-bottom:1px solid var(--border);
+  vertical-align:middle; font-size:13.5px; color:var(--ink);
+}
+.data-table tr:last-child td { border-bottom:none; }
+.data-table tbody tr { transition:background 0.1s; }
+.data-table tbody tr:hover { background:#FAFBFF; }
+
+/* ══ BADGES ══════════════════════════════════════════ */
+.badge {
+  display:inline-flex; align-items:center;
+  padding:4px 11px; border-radius:20px;
+  font-size:12px; font-weight:700;
+}
+.badge-blue    { background:var(--blue-lt); color:var(--blue); }
+.badge-green   { background:#E8F8F0;        color:var(--green); }
+.badge-red     { background:var(--red-lt);  color:var(--red); }
+.badge-amber   { background:var(--amber-lt);color:#C67C00; }
+.badge-teal    { background:var(--teal-lt); color:var(--teal); }
+.badge-neutral { background:var(--bg);      color:var(--ink3); border:1px solid var(--border); }
+
+/* ══ FORMS ══════════════════════════════════════════ */
+.form-section {
+  background: var(--white); border-radius: var(--radius);
+  border: 1px solid var(--border); box-shadow: var(--shadow);
+  padding: 28px; margin-bottom: 24px;
+}
+.form-section-title {
+  font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 700;
+  color: var(--ink); margin-bottom: 20px;
+  display: flex; align-items: center; gap: 8px;
+}
+.form-section-title::before {
+  content:''; width:4px; height:18px;
+  background: linear-gradient(135deg,#3B6FE8,#6B4FDB);
+  border-radius:2px;
+}
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.form-grid.cols-1 { grid-template-columns:1fr; }
+.form-grid.cols-3 { grid-template-columns:1fr 1fr 1fr; }
+.form-group { display:flex; flex-direction:column; gap:6px; }
+.form-group.full { grid-column:1/-1; }
+.form-label {
+  font-size:11.5px; font-weight:700; letter-spacing:0.06em;
+  text-transform:uppercase; color:var(--ink2);
+}
+.form-ctrl {
+  padding:10px 14px;
+  background:var(--bg); border:1.5px solid var(--border);
+  border-radius:var(--radius-sm);
+  font-family:'DM Sans',sans-serif; font-size:14px; color:var(--ink);
+  outline:none; transition:all 0.2s; width:100%;
+}
+.form-ctrl:focus { border-color:var(--blue); background:var(--white); box-shadow:0 0 0 3px rgba(59,111,232,0.1); }
+textarea.form-ctrl { resize:vertical; min-height:90px; }
+select.form-ctrl { cursor:pointer; }
+.form-actions {
+  display:flex; gap:12px; margin-top:24px;
+  padding-top:18px; border-top:1px solid var(--border);
+}
+
+/* ══ TOAST ══════════════════════════════════════════ */
+#toasts {
+  position:fixed; top:72px; right:20px; z-index:9999;
+  display:flex; flex-direction:column; gap:8px; max-width:340px;
+}
+.toast {
+  background:var(--white); border-radius:10px; padding:13px 16px;
+  border:1px solid var(--border); box-shadow:var(--shadow-md);
+  display:flex; align-items:flex-start; gap:10px;
+  animation:toastIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+.toast-bar { width:4px; border-radius:2px; align-self:stretch; flex-shrink:0; }
+.toast.success .toast-bar { background:var(--green); }
+.toast.error   .toast-bar { background:var(--red); }
+.toast.info    .toast-bar { background:var(--blue); }
+.toast.warning .toast-bar { background:var(--amber); }
+.toast-title { font-weight:700; font-size:13px; color:var(--ink); }
+.toast-msg { font-size:12px; color:var(--ink3); margin-top:2px; }
+.toast-x { margin-left:auto; cursor:pointer; color:var(--ink3); font-size:14px; background:none; border:none; }
+@keyframes toastIn  { from{transform:translateX(110%);opacity:0;} to{transform:translateX(0);opacity:1;} }
+@keyframes toastOut { from{transform:translateX(0);opacity:1;} to{transform:translateX(110%);opacity:0;} }
+@keyframes fadeUp   { from{transform:translateY(14px);opacity:0;} to{transform:translateY(0);opacity:1;} }
+
+/* ══ PAGE HEADER ══════════════════════════════════════ */
+.page-hd {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:24px; flex-wrap:wrap; gap:12px;
+}
+.page-title {
+  font-family:'Sora',sans-serif; font-size:22px; font-weight:700;
+  color:var(--ink); letter-spacing:-0.02em;
+}
+.page-sub { font-size:13px; color:var(--ink3); margin-top:2px; }
+
+/* ══ EMPTY STATE ══════════════════════════════════════ */
+.empty {
+  text-align:center; padding:48px 24px; color:var(--ink3);
+}
+.empty-icon { font-size:40px; margin-bottom:12px; }
+.empty-title {
+  font-family:'Sora',sans-serif; font-weight:700; font-size:15px;
+  color:var(--ink2); margin-bottom:6px;
+}
+.empty-desc { font-size:13px; }
+
+/* ══ MISC ════════════════════════════════════════════ */
+.emp-cell { display:flex; align-items:center; gap:10px; }
+.emp-av {
+  width:32px; height:32px; border-radius:9px; flex-shrink:0;
+  background:linear-gradient(135deg,#4776E6,#8E54E9);
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Sora',sans-serif; font-weight:700; font-size:12px; color:#fff;
+}
+.action-grp { display:flex; gap:5px; flex-wrap:wrap; }
+
+/* ══ SCROLLBAR ════════════════════════════════════════ */
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:rgba(0,0,0,0.15); }
+
+/* ══ RESPONSIVE ══════════════════════════════════════ */
+@media(max-width:1100px) { .stats-row { grid-template-columns:repeat(2,1fr); } }
+@media(max-width:900px) {
+  .main { padding:20px 16px; }
+  .tn-search { display:none; }
+  .form-grid { grid-template-columns:1fr; }
+  .form-grid.cols-3 { grid-template-columns:1fr; }
+}
+</style>
+
+</head>
+<body>
+
+<nav class="topnav">
+  <a class="tn-brand" href="/dashboard">
+    <div class="tn-logo">TF</div>
+    <span class="tn-name">TalentFlow.<span>Pro</span></span>
+  </a>
+
+  <div class="tn-links">
+    <a class="tn-link " href="/dashboard"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> Overview</a><a class="tn-link " href="/jobs"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg> Job Management</a><a class="tn-link " href="/ai-screening"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg> AI Screening</a><a class="tn-link " href="/interviews"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Interviews</a><a class="tn-link " href="/assessments"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2h-4"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg> Assessments</a><a class="tn-link " href="/communications"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Messages</a><a class="tn-link active" href="/offers"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Offers</a><a class="tn-link " href="/evaluations"> Evaluation</a>
+    <div class="tn-sep"></div>
+    <a class="tn-link " href="/reports"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Reports</a><a class="tn-link " href="/post-job"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Post Job</a>
+  </div>
+
+  <div class="tn-right">
+    <div class="tn-search">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#8A8FA8" stroke-width="2.5">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" placeholder="Search anything…" id="globalSearch" oninput="globalSearchFn(this.value)">
+    </div>
+    <button class="notif-btn" title="Notifications" onclick="toggleNotifications()">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+      <span class="notif-dot" id="notifCount"></span>
+    </button>
+    <div class="notif-dropdown" id="notifDropdown">
+      <div class="notif-header">
+        <h4>Notifications</h4>
+        <button class="notif-clear" onclick="clearAllNotifications()">Clear All</button>
+      </div>
+      <div class="notif-list" id="notifList">
+        <div class="notif-empty">No new notifications</div>
+      </div>
+    </div>
+    <div class="user-pill">
+      <div class="user-av">D</div>
+      <span class="user-name">Debug</span>
+      <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="#8A8FA8" stroke-width="2.5">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </div>
+    <a href="/logout" class="logout-link">⏏ Logout</a>
+  </div>
+</nav>
+<div id="toasts"></div>
+
+<div class="main">
+
+<!-- ══ PAGE HEADER ══ -->
+<div class="page-hd">
+  <div>
+    <div class="page-title">Offer Management</div>
+    <div class="page-sub">Create, send, and track job offers for shortlisted candidates.</div>
+  </div>
+  <button class="btn btn-primary" onclick="scrollToForm()">
+    <svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2.5'>
+      <line x1='12' y1='5' x2='12' y2='19'/><line x1='5' y1='12' x2='19' y2='12'/>
+    </svg>
+    Create Offer
+  </button>
+</div>
+
+<!-- ══ STATS ══ -->
+<div class="stats-row" style="margin-bottom:24px;">
+  <div class="stat-tile"><div class="stat-icon"><svg width='22' height='22' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='1.8'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/><line x1='16' y1='13' x2='8' y2='13'/><line x1='16' y1='17' x2='8' y2='17'/></svg></div><div class="stat-body"><div class="stat-label">Total Offers</div><div class="stat-value">1</div></div></div>
+  <div class="stat-tile"><div class="stat-icon"><svg width='22' height='22' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='1.8'><path d='M5 2h14M5 22h14M5 2a7 7 0 0 1 7 7M19 2a7 7 0 0 0-7 7M5 22a7 7 0 0 0 7-7M19 22a7 7 0 0 1-7-7'/></svg></div><div class="stat-body"><div class="stat-label">Active / Sent</div><div class="stat-value">1</div></div></div>
+  <div class="stat-tile"><div class="stat-icon"><svg width='22' height='22' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='1.8'><path d='M22 11.08V12a10 10 0 1 1-5.93-9.14'/><polyline points='22 4 12 14.01 9 11.01'/></svg></div><div class="stat-body"><div class="stat-label">Accepted</div><div class="stat-value">0</div></div></div>
+  <div class="stat-tile"><div class="stat-icon"><svg width='22' height='22' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='1.8'><circle cx='12' cy='12' r='10'/><line x1='15' y1='9' x2='9' y2='15'/><line x1='9' y1='9' x2='15' y2='15'/></svg></div><div class="stat-body"><div class="stat-label">Rejected</div><div class="stat-value">0</div></div></div>
+</div>
+
+<!-- ══ TWO-COLUMN ══ -->
+<div style="display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start;">
+
+  <!-- LEFT: Create form -->
+  <div class="card" id="offerForm" style="animation:fadeUp 0.3s ease both;">
+    <div class="card-hd">
+      <span class="card-title">
+        <svg width='14' height='14' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'
+          style='vertical-align:-2px;margin-right:6px;'>
+          <path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/>
+          <polyline points='14 2 14 8 20 8'/>
+        </svg>
+        Create Offer Letter
+      </span>
+      <button class="btn btn-outline" style="padding:5px 12px;font-size:12px;" onclick="clearForm()">Reset</button>
+    </div>
+    <div class="card-bd">
+
+      <!-- Row 1: Application + Type -->
+      <div class="form-grid" style="margin-bottom:16px;">
+        <div class="form-group">
+          <label class="form-label">Application *</label>
+          <select class="form-ctrl" id="applicationSelect" onchange="autoFill()">
+            <option value="">Select candidate…</option><option value="10">Mariana Anderson — Marketing Manager</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Offer Type *</label>
+          <select class="form-ctrl" id="offerType" onchange="updateSalaryPlaceholder()">
+            <option value="full-time">Full-time</option>
+            <option value="part-time">Part-time</option>
+            <option value="contract">Contract</option>
+            <option value="internship">Internship</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Row 2: Position + Department (auto-filled) -->
+      <div class="form-grid" style="margin-bottom:16px;">
+        <div class="form-group">
+          <label class="form-label">Position Title *</label>
+          <input class="form-ctrl" type="text" id="positionTitle" placeholder="Auto-filled from application">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Department *</label>
+          <input class="form-ctrl" type="text" id="department" placeholder="Auto-filled from application">
+        </div>
+      </div>
+
+      <!-- Row 3: Salary + Start Date -->
+      <div class="form-grid" style="margin-bottom:16px;">
+        <div class="form-group">
+          <label class="form-label">Salary *</label>
+          <div style="position:relative;">
+            <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink3);font-weight:700;">$</span>
+            <input class="form-ctrl" type="text" id="salary" placeholder="e.g. 80,000 per year" style="padding-left:26px;" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Start Date *</label>
+          <input class="form-ctrl" type="date" id="startDate" min="2026-05-03" required>
+        </div>
+      </div>
+
+      <!-- Row 4: Location + Reports To -->
+      <div class="form-grid" style="margin-bottom:16px;">
+        <div class="form-group">
+          <label class="form-label">Location *</label>
+          <input class="form-ctrl" type="text" id="location" placeholder="Office or Remote" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Reports To *</label>
+          <input class="form-ctrl" type="text" id="reportingTo" placeholder="Manager name" required>
+        </div>
+      </div>
+
+      <!-- Benefits + Details -->
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label">Benefits & Perks</label>
+        <textarea class="form-ctrl" id="benefits" rows="4" style="resize:vertical;"
+          placeholder="Health insurance, equity, remote work, PTO…"></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label">Additional Offer Details</label>
+        <textarea class="form-ctrl" id="offerDetails" rows="3" style="resize:vertical;"
+          placeholder="Non-compete terms, signing bonus, relocation allowance…"></textarea>
+      </div>
+
+      <!-- Response deadline -->
+      <div class="form-group" style="margin-bottom:20px;">
+        <label class="form-label">Response Deadline</label>
+        <input class="form-ctrl" type="date" id="responseDeadline" min="2026-04-26">
+        <div style="font-size:11.5px;color:var(--ink3);margin-top:4px;">Leave blank for no deadline.</div>
+      </div>
+
+      <!-- Actions -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;padding-top:18px;border-top:1px solid var(--border);">
+        <button class="btn btn-primary" id="createBtn" onclick="submitOffer()">
+          <svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'>
+            <path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/>
+          </svg>
+          <span id="createBtnLabel">Create Offer</span>
+        </button>
+        <button class="btn btn-outline" onclick="openPreview()">
+          <svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'>
+            <path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/>
+          </svg>
+          Preview Letter
+        </button>
+        <button class="btn btn-outline" onclick="saveDraft()"><svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z'/><polyline points='17 21 17 13 7 13 7 21'/><polyline points='7 3 7 8 15 8'/></svg> Save Draft</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Stats + tips -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+
+    <!-- Acceptance rate -->
+    <div class="card" style="animation:fadeUp 0.3s ease 0.08s both;">
+      <div class="card-hd"><span class="card-title">Acceptance Rate</span></div>
+      <div class="card-bd" style="text-align:center;padding:20px 12px;">
+        <div style="position:relative;width:100px;height:100px;margin:0 auto 12px;">
+          <svg viewBox='0 0 36 36' style='transform:rotate(-90deg);width:100px;height:100px;'>
+            <circle cx='18' cy='18' r='15.9' fill='none' stroke='var(--border)' stroke-width='3'/>
+            <circle cx='18' cy='18' r='15.9' fill='none' stroke='var(--green)' stroke-width='3'
+              stroke-dasharray='0 100'
+              stroke-linecap='round'/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+            <span style="font-family:'Sora',sans-serif;font-size:20px;font-weight:800;color:var(--ink);">
+              0%
+            </span>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--ink3);">0 accepted of 1 total</div>
+      </div>
+    </div>
+
+    <!-- Offer tips -->
+    <div class="card" style="animation:fadeUp 0.3s ease 0.14s both;">
+      <div class="card-hd"><span class="card-title">Offer Tips</span></div>
+      <div class="card-bd" style="display:flex;flex-direction:column;gap:10px;">
+        <div class="otip-row">
+  <span class="otip-icon"><svg width='16' height='16' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='12' y1='1' x2='12' y2='23'/><path d='M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'/></svg></span>
+  <div><div class="otip-title">Be competitive</div><div class="otip-desc">Research market rates. Salary is the #1 reason offers are rejected.</div></div>
+</div>
+        <div class="otip-row">
+  <span class="otip-icon"><svg width='16' height='16' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><polygon points='13 2 3 14 12 14 11 22 21 10 12 10 13 2'/></svg></span>
+  <div><div class="otip-title">Move fast</div><div class="otip-desc">Top candidates receive multiple offers — send within 48 hours.</div></div>
+</div>
+        <div class="otip-row">
+  <span class="otip-icon"><svg width='14' height='14' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><rect x='3' y='4' width='18' height='18' rx='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg></span>
+  <div><div class="otip-title">Set a deadline</div><div class="otip-desc">A clear response deadline creates urgency and signals respect.</div></div>
+</div>
+        <div class="otip-row">
+  <span class="otip-icon"><svg width='16' height='16' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path d='M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.36 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.27 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8a16 16 0 0 0 7.92 7.92l1.35-1.35a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z'/></svg></span>
+  <div><div class="otip-title">Follow up</div><div class="otip-desc">Send a personal call to discuss the offer before the deadline.</div></div>
+</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ ACTIVE OFFERS ══ -->
+<div class="card" style="margin-top:8px;animation:fadeUp 0.3s ease 0.22s both;">
+  <div class="card-hd">
+    <span class="card-title">Active Offers</span>
+    <span class="card-tag">1 active</span>
+  </div>
+  <div id="activeOffersList" style="padding:16px 22px;">
+    <div class="offer-card" style="animation-delay:0.00s;">
+  <div class="offer-av" style="background:linear-gradient(135deg,#6B4FDB,#9B6FFF);">M</div>
+  <div class="offer-body">
+    <div class="offer-name">Mariana Anderson — Test Role</div>
+    <div class="offer-meta">
+      <span><svg width='11' height='11' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='12' y1='1' x2='12' y2='23'/><path d='M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'/></svg> 1000</span>
+      <span><svg width='11' height='11' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><rect x='3' y='4' width='18' height='18' rx='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg> Start: 2026-05-10</span>
+      <span><svg width='11' height='11' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path d='M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2'/><rect x='9' y='3' width='6' height='4' rx='1'/></svg> Full Time</span>
+      <span style="display:inline-flex;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700;background:var(--bg);color:var(--ink3);border:1px solid var(--border);">Pending</span>
+    </div>
+  </div>
+  <div class="offer-actions">
+    <button class="btn btn-outline btn-sm" onclick="viewOffer(5)">View</button>
+    <button class='btn btn-primary btn-sm' onclick='sendOffer(5)'><svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='22' y1='2' x2='11' y2='13'/><polygon points='22 2 15 22 11 13 2 9 22 2'/></svg> Send</button>
+    
+    <button class="btn btn-danger btn-sm" onclick="deleteOffer(5)">Delete</button>
+  </div>
+</div>
+  </div>
+</div>
+
+<!-- ══ OFFER HISTORY ══ -->
+<div class="card" style="margin-top:0;animation:fadeUp 0.3s ease 0.28s both;">
+  <div class="card-hd">
+    <span class="card-title">Offer History</span>
+    <button class="btn btn-outline" style="padding:5px 12px;font-size:12px;" onclick="loadOfferHistory()">
+      <svg width='11' height='11' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'>
+        <polyline points='1 4 1 10 7 10'/><path d='M3.51 15a9 9 0 1 0 .49-4.94'/>
+      </svg>
+      Refresh
+    </button>
+  </div>
+  <div id="offersHistory" style="padding:16px 22px;">
+    <div style="text-align:center;padding:32px;">
+      <div class="spin" style="margin:0 auto 10px;"></div>
+      <div style="font-size:13px;color:var(--ink3);">Loading offer history…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PREVIEW MODAL ══ -->
+<div id="previewModal" style="display:none;position:fixed;inset:0;background:rgba(13,14,26,0.55);
+     z-index:10000;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
+  <div style="background:var(--white);border-radius:16px;padding:32px;max-width:680px;width:90%;
+              max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);position:relative;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+      <span style="font-family:'Sora',sans-serif;font-weight:700;font-size:16px;color:var(--ink);"><svg width='14' height='14' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><rect x='2' y='7' width='20' height='14' rx='2'/><path d='M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2'/></svg> Offer Letter Preview</span>
+      <button onclick="closePreview()" style="background:var(--bg);border:1px solid var(--border);
+              border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--ink2);"><svg width='14' height='14' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='18' y1='6' x2='6' y2='18'/><line x1='6' y1='6' x2='18' y2='18'/></svg></button>
+    </div>
+    <div id="previewContent"></div>
+  </div>
+</div>
+
+<!-- ══ VIEW OFFER MODAL ══ -->
+<div id="viewOfferModal" style="display:none;position:fixed;inset:0;background:rgba(13,14,26,0.55);
+     z-index:10000;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
+  <div style="background:var(--white);border-radius:16px;padding:32px;max-width:580px;width:90%;
+              max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);position:relative;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;">
+      <span style="font-family:'Sora',sans-serif;font-weight:700;font-size:16px;color:var(--ink);"><svg width='14' height='14' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><rect x='2' y='7' width='20' height='14' rx='2'/><path d='M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2'/></svg> Offer Details</span>
+      <button onclick="closeViewOffer()" style="background:var(--bg);border:1px solid var(--border);
+              border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--ink2);"><svg width='14' height='14' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='18' y1='6' x2='6' y2='18'/><line x1='6' y1='6' x2='18' y2='18'/></svg></button>
+    </div>
+    <div id="viewOfferContent"></div>
+  </div>
+</div>
+
+<style>
+.spin {
+  width:20px;height:20px;border-radius:50%;
+  border:2.5px solid var(--border);border-top-color:var(--blue);
+  animation:spinA .7s linear infinite;
+}
+@keyframes spinA {to{transform:rotate(360deg);}}
+
+.offer-card {
+  display:flex;align-items:flex-start;gap:14px;
+  padding:16px 18px;border-radius:12px;
+  border:1.5px solid var(--border);background:var(--white);
+  margin-bottom:10px;transition:all 0.15s;
+  animation:fadeUp 0.3s ease both;
+}
+.offer-card:hover { border-color:rgba(59,111,232,.3);box-shadow:var(--shadow); }
+.offer-av {
+  width:40px;height:40px;border-radius:10px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Sora',sans-serif;font-weight:800;font-size:15px;color:#fff;
+}
+.offer-body {flex:1;min-width:0;}
+.offer-name {font-weight:700;font-size:14px;color:var(--ink);margin-bottom:3px;}
+.offer-meta {display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--ink3);margin-top:5px;}
+.offer-actions {display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;align-self:flex-start;}
+
+.otip-row {display:flex;align-items:flex-start;gap:9px;}
+.otip-icon {font-size:15px;flex-shrink:0;margin-top:1px;}
+.otip-title {font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:2px;}
+.otip-desc  {font-size:11.5px;color:var(--ink3);line-height:1.45;}
+
+/* Detail table in view modal */
+.od-table {width:100%;border-collapse:collapse;margin-bottom:16px;}
+.od-table td {padding:9px 0;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:top;}
+.od-table td:first-child {
+  font-weight:700;color:var(--ink2);width:120px;
+  font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;
+}
+.od-table tr:last-child td {border-bottom:none;}
+.od-notes {
+  background:var(--bg);border-radius:9px;padding:13px;
+  font-size:13px;color:var(--ink);line-height:1.65;
+  white-space:pre-wrap;border:1px solid var(--border);
+  max-height:120px;overflow-y:auto;margin-top:12px;
+}
+</style>
+
+<script>
+// ── AV COLOURS ────────────────────────────────────────
+const AV_COLS = [
+  ['#4776E6','#8E54E9'],['#F05252','#FF7B7B'],
+  ['#0BB5B5','#36D1C4'],['#F4A83A','#F7CB6A'],
+  ['#27AE60','#52C87A'],['#6B4FDB','#9B6FFF'],
+];
+function avGrad(name) {
+  const i = (name||'?').charCodeAt(0)%AV_COLS.length;
+  return `linear-gradient(135deg,${AV_COLS[i][0]},${AV_COLS[i][1]})`;
+}
+
+// ── AUTO-FILL ─────────────────────────────────────────
+function autoFill() {
+  const id = document.getElementById('applicationSelect').value;
+  if (!id) return;
+  fetch('/api/application-details/'+id)
+    .then(r=>r.json())
+    .then(d=>{
+      if (d.success) {
+        const a = d.application;
+        document.getElementById('positionTitle').value = a.job_title    || '';
+        document.getElementById('department').value    = a.department   || '';
+      }
+    }).catch(()=>{});
+}
+
+function updateSalaryPlaceholder() {
+  const t = document.getElementById('offerType').value;
+  const ph = {internship:'e.g. 2,000/month or 20/hr',contract:'e.g. 120,000/year or 75/hr',
+               'part-time':'e.g. 40,000 – 60,000/year'}[t] || 'e.g. 80,000 – 120,000/year';
+  document.getElementById('salary').placeholder = ph;
+}
+
+function scrollToForm() {
+  document.getElementById('offerForm').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── PREVIEW ───────────────────────────────────────────
+function openPreview() {
+  const pos = gv('positionTitle');
+  const sal = gv('salary');
+  if (!pos || !sal) { showToast('Missing','Fill in Position and Salary first.','warning'); return; }
+
+  const today = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  const ben   = gv('benefits');
+  const det   = gv('offerDetails');
+  const dead  = gv('responseDeadline');
+  const start = gv('startDate');
+
+  document.getElementById('previewContent').innerHTML = `
+    <div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#3B6FE8,#6B4FDB);padding:20px 24px;text-align:center;">
+        <div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:#fff;">ZIBITECH</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:3px;">Confidential Offer Letter</div>
+      </div>
+      <div style="padding:24px 28px;background:var(--white);">
+        <p style="font-size:13px;color:var(--ink3);margin-bottom:16px;">${today}</p>
+        <p style="font-size:14px;color:var(--ink);line-height:1.7;margin-bottom:16px;">
+          Dear <strong>[Applicant Name]</strong>,<br><br>
+          We are delighted to offer you the position of <strong style="color:var(--blue);">${escHtml(pos)}</strong> at ZIBITECH.
+        </p>
+        <div style="background:var(--bg);border-radius:10px;padding:16px 20px;margin-bottom:16px;">
+          <div style="font-family:'Sora',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:12px;">Offer Details</div>
+          ${_dtrow2('Position',    pos)}
+          ${_dtrow2('Department',  gv('department'))}
+          ${_dtrow2('Type',        gv('offerType').replace('-',' ').replace(/\b\w/g,c=>c.toUpperCase()))}
+          ${_dtrow2('Salary',      '$'+escHtml(gv('salary')))}
+          ${_dtrow2('Start Date',  start||'TBD')}
+          ${_dtrow2('Location',    gv('location')||'—')}
+          ${_dtrow2('Reports To',  gv('reportingTo')||'—')}
+        </div>
+        ${ben?`<div style="margin-bottom:14px;"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:6px;">Benefits & Perks</div><div style="font-size:13.5px;color:var(--ink2);white-space:pre-wrap;line-height:1.65;">${escHtml(ben)}</div></div>`:''}
+        ${det?`<div style="margin-bottom:14px;"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:6px;">Additional Terms</div><div style="font-size:13.5px;color:var(--ink2);white-space:pre-wrap;line-height:1.65;">${escHtml(det)}</div></div>`:''}
+        <p style="font-size:13.5px;color:var(--ink2);line-height:1.7;">
+          Please respond by <strong style="color:${dead?'var(--red)':'var(--ink)'}">${dead||'as soon as possible'}</strong>.
+          If you have any questions, don't hesitate to reach out.
+        </p>
+        <p style="margin-top:16px;font-size:13.5px;color:var(--ink2);">Best regards,<br><strong>ZIBITECH HR Team</strong></p>
+      </div>
+    </div>`;
+  document.getElementById('previewModal').style.display = 'flex';
+}
+
+function _dtrow2(label, val) {
+  return `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
+    <span style="font-size:12.5px;font-weight:700;color:var(--ink2);min-width:100px;">${label}</span>
+    <span style="font-size:13px;color:var(--ink);">${val||'—'}</span>
+  </div>`;
+}
+
+function closePreview() { document.getElementById('previewModal').style.display='none'; }
+
+// ── DRAFT ─────────────────────────────────────────────
+const DRAFT_IDS = ['applicationSelect','offerType','positionTitle','department','salary',
+  'startDate','location','reportingTo','benefits','offerDetails','responseDeadline'];
+
+function saveDraft() {
+  const d = {};
+  DRAFT_IDS.forEach(id => { const el=document.getElementById(id); if(el) d[id]=el.value; });
+  localStorage.setItem('offerDraft', JSON.stringify(d));
+  showToast('Draft Saved','Form saved locally.','success',2000);
+}
+function clearForm() {
+  DRAFT_IDS.forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  localStorage.removeItem('offerDraft');
+  showToast('Cleared','Form reset.','info',1500);
+}
+
+// ── SUBMIT ────────────────────────────────────────────
+function gv(id) { return (document.getElementById(id)?.value||'').trim(); }
+
+function submitOffer() {
+  const required = ['applicationSelect','positionTitle','department','salary','startDate','location','reportingTo'];
+  for (const id of required) {
+    if (!gv(id)) {
+      showToast('Required', id.replace(/([A-Z])/g,' $1').replace(/^./,c=>c.toUpperCase())+' is required.','warning');
+      document.getElementById(id)?.focus(); return;
+    }
+  }
+  const btn = document.getElementById('createBtn');
+  const lbl = document.getElementById('createBtnLabel');
+  btn.disabled = true;
+  lbl.innerHTML = '<div class="spin" style="width:13px;height:13px;border-width:2px;border-top-color:#fff;display:inline-block;vertical-align:-2px;"></div> Creating…';
+
+  const data = {
+    application_id:   gv('applicationSelect'),
+    offer_type:       gv('offerType'),
+    position_title:   gv('positionTitle'),
+    department:       gv('department'),
+    salary:           gv('salary'),
+    start_date:       gv('startDate'),
+    location:         gv('location'),
+    reporting_to:     gv('reportingTo'),
+    benefits:         gv('benefits'),
+    offer_details:    gv('offerDetails'),
+    response_deadline:gv('responseDeadline'),
+  };
+
+  fetch('/api/create-offer', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)
+  })
+  .then(r=>r.json())
+  .then(d=>{
+    btn.disabled=false; lbl.textContent='Create Offer';
+    if (d.success) {
+      showToast('Offer Created','Offer letter generated successfully.','success');
+      clearForm();
+      localStorage.removeItem('offerDraft');
+      setTimeout(()=>location.reload(), 1300);
+    } else showToast('Error', d.error||'Failed.','error');
+  })
+  .catch(err=>{ btn.disabled=false; lbl.textContent='Create Offer'; showToast('Network Error',err.message,'error'); });
+}
+
+// ── VIEW OFFER ────────────────────────────────────────
+function viewOffer(id) {
+  document.getElementById('viewOfferContent').innerHTML =
+    '<div style="text-align:center;padding:32px;"><div class="spin" style="margin:0 auto 10px;"></div><div style="font-size:13px;color:var(--ink3);">Loading…</div></div>';
+  document.getElementById('viewOfferModal').style.display = 'flex';
+
+  fetch('/api/offer-details/'+id)
+    .then(r=>r.json())
+    .then(d=>{
+      if (!d.success) { document.getElementById('viewOfferContent').innerHTML=`<p style="color:var(--red);">${d.error}</p>`; return; }
+      const o = d.offer;
+      const s = (o.status||'pending').toLowerCase();
+      const statusMeta = {
+        pending:  ['var(--amber-lt)','#C67C00','Pending'],
+        sent:     ['var(--blue-lt)','var(--blue)','Sent'],
+        accepted: ['#E8F8F0','var(--green)','Accepted'],
+        rejected: ['var(--red-lt)','var(--red)','Rejected'],
+        withdrawn:['var(--bg)','var(--ink3)','Withdrawn'],
+      };
+      const [sbg,scol,slbl] = statusMeta[s]||['var(--bg)','var(--ink3)',s];
+      document.getElementById('viewOfferContent').innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+          <div style="width:44px;height:44px;border-radius:11px;flex-shrink:0;
+            background:${avGrad(o.applicant_name)};
+            display:flex;align-items:center;justify-content:center;
+            font-family:'Sora',sans-serif;font-weight:800;font-size:16px;color:#fff;">
+            ${(o.applicant_name||'?')[0].toUpperCase()}
+          </div>
+          <div style="flex:1;">
+            <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:15px;color:var(--ink);">${escHtml(o.applicant_name||'N/A')}</div>
+            <div style="font-size:12.5px;color:var(--ink3);">${escHtml(o.position_title||'N/A')}</div>
+          </div>
+          <span style="display:inline-flex;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;background:${sbg};color:${scol};">${slbl}</span>
+        </div>
+        <table class="od-table">
+          <tr><td>Position</td><td style="font-weight:600;">${escHtml(o.position_title||'—')}</td></tr>
+          <tr><td>Department</td><td>${escHtml(o.department||'—')}</td></tr>
+          <tr><td>Offer Type</td><td>${escHtml(o.offer_type||'—')}</td></tr>
+          <tr><td>Salary</td><td style="font-weight:700;color:var(--blue);">${escHtml(o.salary||'—')}</td></tr>
+          <tr><td>Start Date</td><td>${escHtml(o.start_date||'—')}</td></tr>
+          <tr><td>Location</td><td>${escHtml(o.location||'—')}</td></tr>
+          <tr><td>Reports To</td><td>${escHtml(o.reporting_to||'—')}</td></tr>
+          <tr><td>Deadline</td><td>${escHtml(o.response_deadline||'No deadline')}</td></tr>
+        </table>
+        ${o.benefits?`<div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink3);margin-bottom:6px;">Benefits</div><div class="od-notes">${escHtml(o.benefits)}</div>`:''}
+        <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
+          <div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink3);margin-bottom:8px;">Update Status</div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <select class="form-ctrl" id="offerStatusSelect" style="flex:1;">
+              <option value="draft" ${s==='draft'?'selected':''}>Draft</option>
+              <option value="sent" ${s==='sent'?'selected':''}>Sent</option>
+              <option value="accepted" ${s==='accepted'?'selected':''}>Accepted</option>
+              <option value="rejected" ${s==='rejected'?'selected':''}>Rejected</option>
+              <option value="hired" ${s==='hired'?'selected':''}>Hired (Sync to HRMS)</option>
+              <option value="withdrawn" ${s==='withdrawn'?'selected':''}>Withdrawn</option>
+            </select>
+            <button class="btn btn-primary" onclick="updateOfferStatus(${id})">Update</button>
+          </div>
+          ${s === 'hired' ? '<div style="margin-top:8px; font-size:11px; color:var(--green); font-weight:700;">✓ Synced to TalentFlow HRMS</div>' : ''}
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:24px;flex-wrap:wrap;">
+          ${s==='accepted' ? `<button class="btn btn-success" onclick="closeViewOffer();updateOfferStatus(${o.id}, 'hired')"><svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2.5'><path d='M22 11.08V12a10 10 0 1 1-5.93-9.14'/><polyline points='22 4 12 14.01 9 11.01'/></svg> Finalize Hire & Sync</button>` : ''}
+          ${s==='draft' || s==='pending' ?`<button class="btn btn-primary" onclick="closeViewOffer();sendOffer(${id})"><svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='22' y1='2' x2='11' y2='13'/><polygon points='22 2 15 22 11 13 2 9 22 2'/></svg> Send Offer</button>`
+            : s==='sent'?`<button class="btn btn-danger" onclick="closeViewOffer();withdrawOffer(${id})"><svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><polyline points='9 14 4 9 9 4'/><path d='M20 20v-7a4 4 0 0 0-4-4H4'/></svg> Withdraw</button>`:''}
+          <button class="btn btn-outline" onclick="closeViewOffer()">Close</button>
+        </div>`;
+    })
+    .catch(()=>{ document.getElementById('viewOfferContent').innerHTML='<p style="color:var(--red);">Network error.</p>'; });
+}
+function closeViewOffer() { document.getElementById('viewOfferModal').style.display='none'; }
+
+// ── SEND / WITHDRAW / DELETE ───────────────────────────
+function updateOfferStatus(id, manualStatus = null) {
+  const status = manualStatus || document.getElementById('offerStatusSelect').value;
+  if (!confirm(`Update offer status to "${status}"?` + (status === 'hired' ? '\n\nIMPORTANT: This will finalize the recruitment and push the new employee data to the TalentFlow HRMS.' : ''))) return;
+  
+  fetch('/api/update-offer-status', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ offer_id: id, status: status })
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) {
+      showToast('Status Updated', `Offer is now ${status}.`, 'success');
+      closeViewOffer();
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      showToast('Update Failed', d.error || 'Failed to update.', 'error');
+    }
+  })
+  .catch(err => showToast('Network Error', err.message, 'error'));
+}
+
+function sendOffer(id) {
+  if (!confirm('Send this offer to the candidate now?')) return;
+  fetch('/api/send-offer/'+id, {method:'POST'})
+    .then(r=>r.json())
+    .then(d=>{ if(d.success){ showToast('Offer Sent','Email dispatched to candidate.','success'); setTimeout(()=>location.reload(),1200); }
+      else showToast('Error', d.error||'Failed.','error'); })
+    .catch(()=>showToast('Error','Network error.','error'));
+}
+function withdrawOffer(id) {
+  if (!confirm('Withdraw this offer?')) return;
+  fetch('/api/withdraw-offer/'+id, {method:'POST'})
+    .then(r=>r.json())
+    .then(d=>{ if(d.success){ showToast('Withdrawn','Offer has been withdrawn.','warning'); setTimeout(()=>location.reload(),1200); }
+      else showToast('Error', d.error||'Failed.','error'); })
+    .catch(()=>showToast('Error','Network error.','error'));
+}
+function deleteOffer(id) {
+  if (!confirm('Delete this offer permanently?')) return;
+  fetch('/api/delete-offer/'+id, {method:'DELETE'})
+    .then(r=>r.json())
+    .then(d=>{ if(d.success){ showToast('Deleted','Offer removed.','warning'); setTimeout(()=>location.reload(),1200); }
+      else showToast('Error', d.error||'Failed.','error'); })
+    .catch(()=>showToast('Error','Network error.','error'));
+}
+
+// ── HISTORY ──────────────────────────────────────────
+function loadOfferHistory() {
+  const div = document.getElementById('offersHistory');
+  div.innerHTML = '<div style="text-align:center;padding:32px;"><div class="spin" style="margin:0 auto 10px;"></div><div style="font-size:13px;color:var(--ink3);">Loading…</div></div>';
+  fetch('/api/offer-history')
+    .then(r=>r.json())
+    .then(d=>{
+      if (!d.success||!d.offers.length) {
+        div.innerHTML = `<div style="text-align:center;padding:40px;color:var(--ink3);">
+          <div style="margin-bottom:12px;"><svg width='20' height='20' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='1.8'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/><line x1='16' y1='13' x2='8' y2='13'/><line x1='16' y1='17' x2='8' y2='17'/></svg></div>
+          <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:14px;color:var(--ink2);">No offer history yet</div>
+        </div>`; return;
+      }
+      div.innerHTML = d.offers.map((o,i) => {
+        const s = (o.status||'pending').toLowerCase();
+        const statusMeta = {
+          pending:  ['var(--amber-lt)','#C67C00','Pending'],
+          sent:     ['var(--blue-lt)','var(--blue)','Sent'],
+          accepted: ['#E8F8F0','var(--green)','Accepted'],
+          rejected: ['var(--red-lt)','var(--red)','Rejected'],
+          withdrawn:['var(--bg)','var(--ink3)','Withdrawn'],
+        };
+        const [sbg,scol,slbl] = statusMeta[s]||['var(--bg)','var(--ink3)',s];
+        return `<div class="offer-card" style="animation-delay:${i*0.04}s;">
+          <div class="offer-av" style="background:${avGrad(o.applicant_name||'?')}">${(o.applicant_name||'?')[0].toUpperCase()}</div>
+          <div class="offer-body">
+            <div class="offer-name">${escHtml(o.applicant_name||'N/A')} — ${escHtml(o.position_title||'N/A')}</div>
+            <div class="offer-meta">
+              <span><svg width='11' height='11' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='12' y1='1' x2='12' y2='23'/><path d='M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'/></svg> ${escHtml(o.salary||'—')}</span>
+              <span><svg width='11' height='11' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path d='M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/><polyline points='9 22 9 12 15 12 15 22'/></svg> ${escHtml(o.department||'—')}</span>
+              <span><svg width='11' height='11' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><rect x='3' y='4' width='18' height='18' rx='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg> ${escHtml(o.start_date||'—')}</span>
+              <span style="display:inline-flex;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700;background:${sbg};color:${scol};">${slbl}</span>
+            </div>
+          </div>
+          <div class="offer-actions">
+            <button class="btn btn-outline btn-sm" onclick="viewOffer(${o.id})">View</button>
+            ${s==='draft' || s==='pending'?`<button class="btn btn-primary btn-sm" onclick="sendOffer(${o.id})">Send</button>`:''}
+            ${s==='sent'?`<button class="btn btn-warn btn-sm" onclick="withdrawOffer(${o.id})">Withdraw</button>`:''}
+            <button class="btn btn-danger btn-sm" onclick="deleteOffer(${o.id})">Delete</button>
+          </div>
+        </div>`;
+      }).join('');
+    })
+    .catch(()=>{
+      div.innerHTML='<div style="text-align:center;padding:32px;color:var(--red);">Error loading history. <button class="btn btn-outline" style="margin-top:10px;" onclick="loadOfferHistory()">Retry</button></div>';
+    });
+}
+
+// ── UTILS ─────────────────────────────────────────────
+function escHtml(s) {
+  if(!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Backdrop close
+['previewModal','viewOfferModal'].forEach(id=>{
+  document.getElementById(id).addEventListener('click', function(e){ if(e.target===this) this.style.display='none'; });
+});
+
+// Init
+window.addEventListener('load', () => {
+  loadOfferHistory();
+  const draft = localStorage.getItem('offerDraft');
+  if (draft) {
+    try {
+      const data = JSON.parse(draft);
+      Object.keys(data).forEach(id => { const el=document.getElementById(id); if(el&&data[id]) el.value=data[id]; });
+      showToast('Draft Restored','Last saved draft loaded.','info',2500);
+    } catch(e) { localStorage.removeItem('offerDraft'); }
+  }
+});
+</script>
+
+</div><!-- /main -->
+
+<script>
+function showToast(title, msg, type='info', dur=4500) {
+  const c = document.getElementById('toasts');
+  if (!c) return;
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.innerHTML = `
+    <div class="toast-bar"></div>
+    <div style="flex:1">
+      <div class="toast-title">${title}</div>
+      <div class="toast-msg">${msg}</div>
+    </div>
+    <button class="toast-x" onclick="this.closest('.toast').remove()">✕</button>`;
+  c.appendChild(t);
+  setTimeout(() => {
+    t.style.animation = 'toastOut 0.25s ease forwards';
+    setTimeout(() => t.remove(), 250);
+  }, dur);
+}
+const showSuccess = (m,t='Success') => showToast(t,m,'success');
+const showError   = (m,t='Error')   => showToast(t,m,'error',  8000);
+const showWarning = (m,t='Warning') => showToast(t,m,'warning',6000);
+const showInfo    = (m,t='Info')    => showToast(t,m,'info',   4000);
+
+// Global search — pages can override this
+function globalSearchFn(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('[data-searchable]').forEach(r => {
+    r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+// Notification system
+let notifications = [];
+let notificationInterval;
+
+function toggleNotifications() {
+  console.log('Notification button clicked!');
+  const dropdown = document.getElementById('notifDropdown');
+  console.log('Dropdown element found:', dropdown);
+  
+  if (dropdown) {
+    dropdown.classList.toggle('show');
+    console.log('Dropdown classes after toggle:', dropdown.className);
+    console.log('Is show class present?', dropdown.classList.contains('show'));
+    
+    // Close when clicking outside
+    if (dropdown.classList.contains('show')) {
+      setTimeout(() => {
+        document.addEventListener('click', closeNotificationsOutside);
+      }, 100);
+    }
+  } else {
+    console.error('notifDropdown element not found!');
+  }
+}
+
+function closeNotificationsOutside(e) {
+  const dropdown = document.getElementById('notifDropdown');
+  if (!dropdown.contains(e.target) && !e.target.closest('.notif-btn')) {
+    dropdown.classList.remove('show');
+    document.removeEventListener('click', closeNotificationsOutside);
+  }
+}
+
+function loadNotifications() {
+  console.log('Loading notifications...');
+  fetch('/api/contact-messages/unread')
+    .then(response => response.json())
+    .then(data => {
+      console.log('Notifications data received:', data);
+      notifications = data;
+      updateNotificationUI();
+    })
+    .catch(error => console.error('Error loading notifications:', error));
+}
+
+function updateNotificationUI() {
+  console.log('Updating notification UI with:', notifications);
+  const notifCount = document.getElementById('notifCount');
+  const notifList = document.getElementById('notifList');
+  
+  console.log('notifCount element:', notifCount);
+  console.log('notifList element:', notifList);
+  
+  if (notifications.length === 0) {
+    console.log('No notifications, hiding count');
+    if (notifCount) notifCount.style.display = 'none';
+    if (notifList) notifList.innerHTML = '<div class="notif-empty">No new notifications</div>';
+  } else {
+    console.log('Found', notifications.length, 'notifications');
+    if (notifCount) {
+      notifCount.style.display = 'block';
+      notifCount.textContent = notifications.length;
+    }
+    
+    const notifHTML = notifications.map(notif => `
+      <div class="notif-item unread" onclick="markAsRead(${notif.id})">
+        <div class="notif-title">New Contact Message</div>
+        <div class="notif-message">${notif.name}: ${notif.subject}</div>
+        <div class="notif-time">${formatTime(notif.created_at)}</div>
+      </div>
+    `).join('');
+    
+    console.log('Generated notification HTML:', notifHTML);
+    if (notifList) notifList.innerHTML = notifHTML;
+  }
+}
+
+function markAsRead(messageId) {
+  fetch(`/api/contact-messages/${messageId}/mark-read`, {
+    method: 'PUT'
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Remove from notifications list
+      notifications = notifications.filter(n => n.id !== messageId);
+      updateNotificationUI();
+      showSuccess('Message marked as read');
+    }
+  })
+  .catch(error => console.error('Error marking as read:', error));
+}
+
+function clearAllNotifications() {
+  if (notifications.length === 0) return;
+  
+  if (confirm('Clear all notifications?')) {
+    Promise.all(notifications.map(n => 
+      fetch(`/api/contact-messages/${n.id}/mark-read`, { method: 'PUT' })
+    ))
+    .then(() => {
+      notifications = [];
+      updateNotificationUI();
+      showSuccess('All notifications cleared');
+    })
+    .catch(error => console.error('Error clearing notifications:', error));
+  }
+}
+
+function formatTime(dateString) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = now - date;
+  
+  if (diff < 60000) return 'Just now';
+  if (diff < 3600000) return Math.floor(diff / 60000) + ' minutes ago';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + ' hours ago';
+  return date.toLocaleDateString();
+}
+
+// Auto-refresh notifications every 30 seconds
+function startNotificationRefresh() {
+  loadNotifications();
+  notificationInterval = setInterval(loadNotifications, 30000);
+}
+
+// Stop refresh when page is hidden
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) {
+    clearInterval(notificationInterval);
+  } else {
+    startNotificationRefresh();
+  }
+});
+
+// Start notification system
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(startNotificationRefresh, 500); // Small delay to ensure page is ready
+});
+</script>
+
+</body>
+</html>

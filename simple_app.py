@@ -467,11 +467,24 @@ async def home(request: Request):
     """Home page with upload form"""
     return HTMLResponse(content=html_template)
 
+def normalize_spaced_text(text: str) -> str:
+    """Detects and fixes spaced-out text (e.g. 'P r o d u c t')"""
+    if not text: return ""
+    sample = text[:500]
+    words = sample.split()
+    if not words: return text
+    single_chars = [w for w in words if len(w) == 1 and w.isalnum()]
+    if len(words) > 10 and len(single_chars) / len(words) > 0.6:
+        text = text.replace('  ', '|||').replace(' ', '').replace('|||', ' ')
+        text = re.sub(r'\n+', '\n', text)
+    return text
+
 @app.post("/score")
 async def score_resume_text(resume_text: str = Form(...), applicant_name: str = Form(None), 
                          email: str = Form(None), position: str = Form(None)):
     """Score resume from text input"""
     try:
+        resume_text = normalize_spaced_text(resume_text)
         result = scorer.score_resume(resume_text)
         
         # Save to database if applicant info provided
@@ -514,6 +527,9 @@ async def score_resume_file(file: UploadFile = File(...), applicant_name: str = 
             except:
                 resume_text = f"Binary file uploaded: {file.filename}. Please provide text content."
         
+        # Normalize text
+        resume_text = normalize_spaced_text(resume_text)
+
         # Score the resume
         result = scorer.score_resume(resume_text)
         

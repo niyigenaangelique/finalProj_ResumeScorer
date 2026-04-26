@@ -1,11 +1,13 @@
-from fastapi import FastAPI, Request, HTTPException, Form
+from fastapi import FastAPI, Request, HTTPException, Form, File, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from database import ResumeDatabase
 from simple_app import SimpleResumeScorer
+from typing import List, Dict, Any, Optional
+import io
+import pypdf
 import json
 import re
-from typing import List, Dict, Any
 
 app = FastAPI(title="Talent Flow Style Portal", description="Modern recruitment portal")
 db = ResumeDatabase()
@@ -94,15 +96,30 @@ class AIAgent:
         elif len(candidate_skills) >= 3:
             score += 3
         
+        # Build detailed match summary
+        matched_skills = list(set(candidate_skills) & set(required_skills))
+        missing_skills = list(set(required_skills) - set(candidate_skills))
+        
+        summary = f"Candidate has {candidate_exp} years of experience (Required: {required_exp}). "
+        if candidate_exp >= required_exp:
+            summary += "Experience requirements met. "
+        else:
+            summary += "Experience gap identified. "
+            
+        summary += f"Matched {len(matched_skills)}/{len(required_skills)} technical skills. "
+        
         return {
             "candidate_id": resume_data.get("id"),
             "screening_score": round(score, 2),
             "max_score": max_score,
             "status": "shortlisted" if score >= 70 else "review_needed" if score >= 50 else "rejected",
             "match_details": {
+                "summary": summary,
                 "experience_match": candidate_exp >= required_exp,
                 "certification_match": f"{int(cert_bonus)}/{len(required_certs)}",
                 "skill_match": f"{skill_match}/{len(required_skills)}",
+                "matched_skills": matched_skills,
+                "missing_skills": missing_skills,
                 "education_level": resume_data.get("education_level")
             }
         }
@@ -402,6 +419,12 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:cen
 .status-reviewed{background:#ebf4ff;color:#2b6cb0;}
 .status-shortlisted{background:#f0fff4;color:#276749;}
 .status-rejected{background:#fff5f5;color:#c53030;}
+.status-interview-passed{background:#e6fffa;color:#0f766e;}
+.status-interview-failed{background:#fff1f2;color:#be123c;}
+.status-hiring-approved{background:#ecfeff;color:#155e75;}
+.status-offer-accepted{background:#ecfdf5;color:#166534;}
+.status-offer-rejected{background:#fff1f2;color:#991b1b;}
+.status-hired{background:#f3e8ff;color:#7e22ce;}
 .score-section{margin-bottom:1.25rem;}
 .score-label{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.5rem;}
 .score-row{display:flex;align-items:center;gap:1rem;}
@@ -701,6 +724,12 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:cen
 .status-reviewed{background:#ebf4ff;color:#2b6cb0;}
 .status-shortlisted{background:#f0fff4;color:#276749;}
 .status-rejected{background:#fff5f5;color:#c53030;}
+.status-interview-passed{background:#e6fffa;color:#0f766e;}
+.status-interview-failed{background:#fff1f2;color:#be123c;}
+.status-hiring-approved{background:#ecfeff;color:#155e75;}
+.status-offer-accepted{background:#ecfdf5;color:#166534;}
+.status-offer-rejected{background:#fff1f2;color:#991b1b;}
+.status-hired{background:#f3e8ff;color:#7e22ce;}
 .score-section{margin-bottom:1.25rem;}
 .score-label{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.5rem;}
 .score-row{display:flex;align-items:center;gap:1rem;}
@@ -787,7 +816,14 @@ function trackApps() {
   fetch('/applications-by-email?email=' + encodeURIComponent(email))
     .then(function(res) {
       if (!res.ok) {
-        return res.text().then(function(t) { throw new Error('Server error ' + res.status + ': ' + t.slice(0,200)); });
+        return res.text().then(function(t) {
+          try {
+            var parsed = JSON.parse(t || '{}');
+            throw new Error(parsed.error || ('Server error ' + res.status));
+          } catch (_) {
+            throw new Error('Server error ' + res.status + ': ' + (t || '').slice(0,200));
+          }
+        });
       }
       return res.json();
     })
@@ -813,13 +849,24 @@ function trackApps() {
       el.innerHTML = data.map(function(app) {
         var status = ((app.status || 'pending') + '').toLowerCase();
 
+        var offerStatus = ((app.offer_status || '') + '').toLowerCase();
         var offerBanner = '';
-        if (app.offer_status === 'sent') {
+        if (offerStatus === 'sent') {
           offerBanner = '<div class="offer-banner">'
             + '<div class="offer-banner-title">&#127881; Congratulations &mdash; You have an offer!</div>'
             + '<p><strong>Position:</strong> ' + (app.offer_position || app.job_title || 'N/A')
             + ' | <strong>Salary:</strong> ' + (app.offer_salary || 'TBD')
             + ' | <strong>Start:</strong> ' + (app.offer_start_date || 'TBD') + '</p>'
+            + '</div>';
+        } else if (offerStatus === 'accepted') {
+          offerBanner = '<div class="offer-banner">'
+            + '<div class="offer-banner-title">&#9989; Offer accepted successfully</div>'
+            + '<p>Your offer response was received. HR will now complete final hiring steps.</p>'
+            + '</div>';
+        } else if (offerStatus === 'rejected') {
+          offerBanner = '<div class="offer-banner" style="background:#fff5f5;border-color:#fecaca;">'
+            + '<div class="offer-banner-title" style="color:#b91c1c;">Offer declined</div>'
+            + '<p style="color:#991b1b;">You have declined this offer. Contact HR if this was a mistake.</p>'
             + '</div>';
         }
 
@@ -854,6 +901,10 @@ function trackApps() {
           tl += '<div class="tl-ev"><div class="tl-ev-title">Interview scheduled &mdash; ' + app.interview_status + '</div>'
             + '<div class="tl-ev-date">' + (app.scheduled_date ? fmtShort(app.scheduled_date) : '') + ' ' + (app.scheduled_time || '') + '</div></div>';
         }
+        if (status === 'interview_failed') {
+          tl += '<div class="tl-ev"><div class="tl-ev-title" style="color:#b91c1c;">Interview result: Not selected</div>'
+            + '<div class="tl-ev-date">Thank you for your time and effort during the interview process.</div></div>';
+        }
         if (app.overall_score) {
           tl += '<div class="tl-ev"><div class="tl-ev-title">Evaluation completed</div>'
             + '<div class="tl-ev-date">Score: ' + app.overall_score + '/10</div></div>';
@@ -865,14 +916,23 @@ function trackApps() {
 
         var appliedStr = app.application_date ? 'Applied ' + new Date(app.application_date).toLocaleDateString('en-GB') : '';
 
+        var actions = '';
+        if (offerStatus === 'sent' && app.offer_id) {
+          actions = '<div style="margin-top:1.5rem;display:flex;gap:1rem;">'
+            + '<button onclick="respondToOffer(' + app.id + ', ' + app.offer_id + ', \\'accepted\\')" class="tf-btn" style="background:#276749;">Accept Offer</button>'
+            + '<button onclick="respondToOffer(' + app.id + ', ' + app.offer_id + ', \\'rejected\\')" class="tf-btn" style="background:#fa5252;">Reject Offer</button>'
+            + '</div>';
+        }
+
         return '<div class="result-card">'
           + offerBanner
           + '<div class="result-header"><div>'
           + '<div class="result-title">' + (app.job_title || 'Application') + '</div>'
           + '<div class="result-meta">' + (app.department || '') + (app.department && appliedStr ? ' &middot; ' : '') + appliedStr + '</div>'
-          + '</div><span class="status-pill status-' + status + '">' + status + '</span></div>'
+          + '</div><span class="status-pill status-' + status.replace(/_/g, '-') + '">' + status.replace(/_/g, ' ') + '</span></div>'
           + scoreHtml
           + '<div class="tl">' + tl + '</div>'
+          + actions
           + '</div>';
       }).join('');
     })
@@ -886,6 +946,25 @@ function trackApps() {
         + '<p><code>/applications-by-email?email=' + encodeURIComponent(email) + '</code></p>'
         + '</div>';
     });
+}
+
+function respondToOffer(appId, offerId, response) {
+  if (!confirm('Are you sure you want to ' + response + ' this offer?')) return;
+  
+  fetch('/api/respond-to-offer', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ application_id: appId, offer_id: offerId, response: response })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (data.success) {
+      alert('Your response has been recorded.');
+      trackApps();
+    } else {
+      alert('Error: ' + data.error);
+    }
+  });
 }
 
 // Wire up button and Enter key after DOM is ready
@@ -944,237 +1023,26 @@ async def track_application(request: Request):
 async def hr_login_redirect():
     return RedirectResponse(url="http://localhost:8003", status_code=302)
 
-
-@app.get("/ai-dashboard", response_class=HTMLResponse)
-async def ai_dashboard(request: Request):
-    """AI Dashboard for HR to view screening results and candidate rankings"""
-    # Get all AI screening results
-    ai_screenings = db.get_ai_screening_results()
-    
-    # Get applications with AI scores
-    applications = []
-    for screening in ai_screenings:
-        # Get applicant details
-        applicant = db.get_applicant_with_score(screening['applicant_id'])
-        if applicant:
-            # Get job details
-            job = db.get_job(screening['job_id'])
-            if job:
-                applications.append({
-                    'applicant': applicant,
-                    'job': job,
-                    'ai_screening': screening,
-                    'ai_score': screening['ai_score'],
-                    'ai_status': screening['ai_status'],
-                    'match_details': screening.get('match_details', {}),
-                    'interview_questions': screening.get('interview_questions', [])
-                })
-    
-    # Sort by AI score
-    applications.sort(key=lambda x: x['ai_score'], reverse=True)
-    
-    # Generate HTML
-    html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>AI Recruitment Dashboard - TalentFlow</title>
-        <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@300;400;600&display=swap" rel="stylesheet">
-        <style>
-            :root{{--blue:#3b5bdb;--blue-dark:#2846c4;--blue-light:#5c7cfa;--violet:#7048e8;--red:#fa5252;--white:#ffffff;--off:#f8f9fc;--text:#2d3748;--muted:#718096;--border:#e8edf5;--card-sh:0 8px 40px rgba(59,91,219,.10);--card-sh-h:0 16px 60px rgba(59,91,219,.18);}}
-            *{{margin:0;padding:0;box-sizing:border-box;}}
-            body{{font-family:'Nunito Sans',sans-serif;background:var(--off);color:var(--text);}}
-            .header{{background:var(--white);padding:1.5rem 2rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}}
-            .logo{{font-family:'Nunito',sans-serif;font-size:1.5rem;font-weight:900;color:var(--blue);}}
-            .nav-links{{display:flex;gap:1.5rem;}}
-            .nav-links a{{color:var(--text);text-decoration:none;font-weight:600;padding:0.5rem 1rem;border-radius:6px;transition:all 0.2s;}}
-            .nav-links a:hover{{background:var(--off);color:var(--blue);}}
-            .container{{max-width:1400px;margin:0 auto;padding:2rem;}}
-            .dashboard-header{{margin-bottom:2rem;}}
-            .dashboard-title{{font-family:'Nunito',sans-serif;font-size:2.5rem;font-weight:900;color:var(--text);margin-bottom:0.5rem;}}
-            .dashboard-subtitle{{color:var(--muted);font-size:1.1rem;}}
-            .stats-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.5rem;margin-bottom:2rem;}}
-            .stat-card{{background:var(--white);padding:1.5rem;border-radius:12px;box-shadow:var(--card-sh);}}
-            .stat-value{{font-family:'Nunito',sans-serif;font-size:2rem;font-weight:900;color:var(--blue);}}
-            .stat-label{{color:var(--muted);font-weight:600;margin-top:0.5rem;}}
-            .applications-grid{{display:grid;gap:1.5rem;}}
-            .app-card{{background:var(--white);border-radius:12px;box-shadow:var(--card-sh);overflow:hidden;}}
-            .app-header{{padding:1.5rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}}
-            .app-title{{font-family:'Nunito',sans-serif;font-size:1.2rem;font-weight:800;color:var(--text);}}
-            .app-score{{display:flex;align-items:center;gap:0.5rem;}}
-            .score-badge{{font-family:'Nunito',sans-serif;font-size:1.5rem;font-weight:900;padding:0.5rem 1rem;border-radius:8px;}}
-            .score-high{{background:#f0fff4;color:#276749;}}
-            .score-medium{{background:#fff9e6;color:#b7791f;}}
-            .score-low{{background:#fff5f5;color:#c53030;}}
-            .status-badge{{padding:0.3rem 0.8rem;border-radius:20px;font-size:0.8rem;font-weight:700;text-transform:uppercase;}}
-            .status-shortlisted{{background:#f0fff4;color:#276749;}}
-            .status-review{{background:#fff9e6;color:#b7791f;}}
-            .status-rejected{{background:#fff5f5;color:#c53030;}}
-            .app-content{{padding:1.5rem;}}
-            .app-section{{margin-bottom:1.5rem;}}
-            .section-title{{font-weight:700;color:var(--text);margin-bottom:0.5rem;font-size:0.9rem;}}
-            .match-details{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;}}
-            .match-item{{text-align:center;padding:1rem;background:var(--off);border-radius:8px;}}
-            .match-value{{font-family:'Nunito',sans-serif;font-size:1.2rem;font-weight:800;color:var(--blue);}}
-            .match-label{{font-size:0.8rem;color:var(--muted);}}
-            .questions-list{{display:flex;flex-direction:column;gap:0.8rem;}}
-            .question{{padding:1rem;background:var(--off);border-radius:8px;border-left:4px solid var(--blue);}}
-            .question-type{{font-size:0.8rem;font-weight:700;color:var(--blue);text-transform:uppercase;margin-bottom:0.3rem;}}
-            .question-text{{color:var(--text);}}
-            .actions{{display:flex;gap:1rem;margin-top:1rem;}}
-            .btn{{padding:0.6rem 1.2rem;border:none;border-radius:6px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:0.5rem;transition:all 0.2s;}}
-            .btn-primary{{background:var(--blue);color:var(--white);}}
-            .btn-primary:hover{{background:var(--blue-dark);}}
-            .btn-secondary{{background:var(--white);color:var(--text);border:2px solid var(--border);}}
-            .btn-secondary:hover{{background:var(--off);}}
-        </style>
-    </head>
-    <body>
-        <header class="header">
-            <div class="logo">TalentFlow AI</div>
-            <nav class="nav-links">
-                <a href="/">Portal</a>
-                <a href="/ai-dashboard">AI Dashboard</a>
-                <a href="/hr-login">HR Portal</a>
-            </nav>
-        </header>
-        
-        <div class="container">
-            <div class="dashboard-header">
-                <h1 class="dashboard-title">AI Recruitment Dashboard</h1>
-                <p class="dashboard-subtitle">Intelligent candidate screening and ranking powered by AI</p>
-            </div>
-            
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value">{len(applications)}</div>
-                    <div class="stat-label">Total Applications</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">{len([a for a in applications if a['ai_status'] == 'shortlisted'])}</div>
-                    <div class="stat-label">Shortlisted</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">{sum(a['ai_score'] for a in applications) / len(applications) if applications else 0:.1f}</div>
-                    <div class="stat-label">Average AI Score</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">{len(set(a['job']['id'] for a in applications))}</div>
-                    <div class="stat-label">Job Positions</div>
-                </div>
-            </div>
-            
-            <div class="applications-grid">
-    """
-    
-    # Add application cards
-    for app in applications:
-        score_class = "score-high" if app['ai_score'] >= 70 else "score-medium" if app['ai_score'] >= 50 else "score-low"
-        status_class = f"status-{app['ai_status'].replace('_needed', '').replace('review', 'review')}"
-        
-        html += f"""
-                <div class="app-card">
-                    <div class="app-header">
-                        <div>
-                            <div class="app-title">{app['applicant']['name']} - {app['job']['title']}</div>
-                            <div style="color:var(--muted);font-size:0.9rem;margin-top:0.3rem;">
-                                Applied: {app['applicant'].get('application_date', 'Unknown')}
-                            </div>
-                        </div>
-                        <div class="app-score">
-                            <div class="score-badge {score_class}">{app['ai_score']:.0f}</div>
-                            <div class="status-badge {status_class}">{app['ai_status']}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="app-content">
-                        <div class="app-section">
-                            <div class="section-title">AI Match Analysis</div>
-                            <div class="match-details">
-                                <div class="match-item">
-                                    <div class="match-value">{app['match_details'].get('experience_match', 'N/A')}</div>
-                                    <div class="match-label">Experience Match</div>
-                                </div>
-                                <div class="match-item">
-                                    <div class="match-value">{app['match_details'].get('skill_match', '0/0')}</div>
-                                    <div class="match-label">Skills Match</div>
-                                </div>
-                                <div class="match-item">
-                                    <div class="match-value">{app['match_details'].get('certification_match', '0/0')}</div>
-                                    <div class="match-label">Certificates</div>
-                                </div>
-                                <div class="match-item">
-                                    <div class="match-value">{app['match_details'].get('education_level', 'Unknown')}</div>
-                                    <div class="match-label">Education</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="app-section">
-                            <div class="section-title">Generated Interview Questions</div>
-                            <div class="questions-list">
-        """
-        
-        for i, question in enumerate(app['interview_questions'][:3]):
-            html += f"""
-                                <div class="question">
-                                    <div class="question-type">{question.get('category', 'General')}</div>
-                                    <div class="question-text">{question.get('question', 'No question available')}</div>
-                                </div>
-            """
-        
-        html += f"""
-                            </div>
-                        </div>
-                        
-                        <div class="actions">
-                            <a href="/jobs/{app['job']['id']}" class="btn btn-secondary">View Job</a>
-                            <button class="btn btn-primary" onclick="generateMoreQuestions({app['applicant']['id']}, {app['job']['id']})">
-                                More Questions
-                            </button>
-                        </div>
-                    </div>
-                </div>
-        """
-    
-    html += """
-            </div>
-        </div>
-        
-        <script>
-            async function generateMoreQuestions(applicantId, jobId) {
-                try {
-                    const response = await fetch('/api/ai-generate-questions', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            resume_data: {id: applicantId},
-                            job_requirements: {id: jobId}
-                        })
-                    });
-                    const data = await response.json();
-                    if (data.success) {
-                        alert('Generated ' + data.questions.length + ' new questions!');
-                        location.reload();
-                    }
-                } catch (error) {
-                    alert('Error generating questions: ' + error.message);
-                }
-            }
-        </script>
-    </body>
-    </html>
-    """
-    
-    return HTMLResponse(content=html)
-
-
 @app.get("/applications-by-email")
 async def get_applications_by_email(email: str):
     try:
         applications = db.get_applications_by_email(email)
+        statuses = {(a.get("status") or "").lower() for a in applications if isinstance(a, dict)}
+        offer_statuses = {(a.get("offer_status") or "").lower() for a in applications if isinstance(a, dict)}
+        if (
+            "offer_accepted" in statuses
+            or "offer_rejected" in statuses
+            or "hired" in statuses
+            or "accepted" in offer_statuses
+            or "rejected" in offer_statuses
+            or "hired" in offer_statuses
+        ):
+            return JSONResponse(
+                content={
+                    "error": "Tracking is closed because you already responded to the offer."
+                },
+                status_code=403
+            )
         result = []
         for app in applications:
             if isinstance(app, dict):
@@ -1213,6 +1081,59 @@ async def ai_screen_candidate(request: Request):
             'success': False,
             'error': str(e)
         }, status_code=500)
+
+@app.post("/api/accept-for-assessment")
+async def accept_for_assessment(request: Request):
+    try:
+        data = await request.json()
+        application_id = int(data.get("application_id", 0))
+        if not application_id:
+            return JSONResponse(content={"success": False, "error": "Missing application_id"}, status_code=400)
+        conn = __import__('sqlite3').connect(db.db_path)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE job_applications SET status = 'accepted_for_assessment' WHERE id = ?", (application_id,))
+        conn.commit(); conn.close()
+        return JSONResponse(content={"success": True, "message": "Candidate accepted for assessment"})
+    except Exception as e:
+        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
+
+@app.post("/api/respond-to-offer")
+async def respond_to_offer(request: Request):
+    """Handle applicant accepting or rejecting an offer"""
+    try:
+        data = await request.json()
+        application_id = int(data.get("application_id", 0))
+        offer_id = int(data.get("offer_id", 0))
+        response = data.get("response") # 'accepted' or 'rejected'
+        
+        if not application_id or not offer_id or response not in ['accepted', 'rejected']:
+            return JSONResponse(content={"success": False, "error": "Invalid request"}, status_code=400)
+        
+        offer_status = 'accepted' if response == 'accepted' else 'rejected'
+        new_status = 'offer_accepted' if response == 'accepted' else 'offer_rejected'
+        db.update_offer_status(offer_id, offer_status)
+        db.update_application_status(application_id, new_status)
+        
+        return JSONResponse(content={"success": True, "message": f"Offer {response} successfully"})
+    except Exception as e:
+        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
+
+@app.post("/api/reject-application")
+async def reject_application(request: Request):
+    try:
+        data = await request.json()
+        application_id = int(data.get("application_id", 0))
+        reason = data.get("reason", "Does not meet requirements")
+        if not application_id:
+            return JSONResponse(content={"success": False, "error": "Missing application_id"}, status_code=400)
+        conn = __import__('sqlite3').connect(db.db_path)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE job_applications SET status = 'rejected' WHERE id = ?", (application_id,))
+        conn.commit(); conn.close()
+        return JSONResponse(content={"success": True, "message": "Candidate rejected"})
+    except Exception as e:
+        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
+
 
 
 @app.post("/api/ai-generate-questions")
@@ -1261,34 +1182,91 @@ async def ai_filter_candidates(request: Request):
         }, status_code=500)
 
 
+def normalize_spaced_text(text: str) -> str:
+    """Detects and fixes spaced-out text (e.g. 'P r o d u c t')"""
+    if not text: return ""
+    sample = text[:500]
+    # Check if a high percentage of 'words' are single characters
+    words = sample.split()
+    if not words: return text
+    single_chars = [w for w in words if len(w) == 1 and w.isalnum()]
+    if len(words) > 10 and len(single_chars) / len(words) > 0.6:
+        # Step 1: Placeholder for double spaces (which denote real spaces)
+        text = text.replace('  ', '|||')
+        # Step 2: Remove all single spaces
+        text = text.replace(' ', '')
+        # Step 3: Restore double spaces as single spaces
+        text = text.replace('|||', ' ')
+        # Step 4: Handle multiple newlines or other debris
+        text = re.sub(r'\n+', '\n', text)
+    return text
+
+def _extract_text_from_pdf(file: UploadFile) -> str:
+    """Extract text from uploaded PDF file using pypdf"""
+    try:
+        pdf_reader = pypdf.PdfReader(file.file)
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text() + "\n"
+        return normalize_spaced_text(text.strip())
+    except Exception as e:
+        print(f"Error extracting PDF text: {e}")
+        return ""
+
 @app.post("/apply/{job_id}")
-async def submit_application(job_id: int, request: Request):
+async def submit_application(
+    job_id: int,
+    name: str = Form(...),
+    email: str = Form(...),
+    phone: Optional[str] = Form(None),
+    position: Optional[str] = Form(""),
+    cover_letter: Optional[str] = Form(""),
+    resume_text: Optional[str] = Form(None),
+    consent: bool = Form(False),
+    resume: Optional[UploadFile] = File(None)
+):
     """Handle job application submission with AI job-specific scoring"""
     try:
-        data = await request.json()
-        
         # Get job details for AI scoring
         job = db.get_job(job_id)
         if not job:
+            return JSONResponse(content={'success': False, 'error': 'Job not found'}, status_code=404)
+        
+        # Check for existing application
+        existing_app = db.check_existing_application(email, job_id)
+        if existing_app:
             return JSONResponse(content={
                 'success': False,
-                'error': 'Job not found'
-            }, status_code=404)
+                'error': 'You have already applied for this position.'
+            }, status_code=400)
+
+        # Extract resume text if file is provided
+        if resume and resume.filename.endswith('.pdf'):
+            extracted_text = _extract_text_from_pdf(resume)
+            if extracted_text:
+                resume_text = extracted_text
         
+        # Normalize text even if pasted manually
+        if resume_text:
+            resume_text = normalize_spaced_text(resume_text)
+        
+        if not resume_text:
+            return JSONResponse(content={'success': False, 'error': 'Resume text or PDF file is required'}, status_code=400)
+
         # Add applicant to database
         applicant_id = db.add_applicant(
-            name=data['name'],
-            email=data['email'],
-            phone=data.get('phone'),
-            position=data.get('position', '')
+            name=name,
+            email=email,
+            phone=phone,
+            position=position or job['title'],
+            consent=consent
         )
         
         # Parse resume data for AI scoring
-        resume_text = data['resume_text']
         resume_data = {
             'id': applicant_id,
-            'name': data['name'],
-            'email': data['email'],
+            'name': name,
+            'email': email,
             'resume_text': resume_text,
             'experience_years': _extract_experience_years(resume_text),
             'skills': _extract_skills(resume_text),
@@ -1339,7 +1317,7 @@ async def submit_application(job_id: int, request: Request):
         db.add_job_application(
             job_id=job_id,
             applicant_id=applicant_id,
-            cover_letter=data.get('cover_letter', '')
+            cover_letter=cover_letter
         )
         
         return JSONResponse(content={
@@ -1433,6 +1411,10 @@ def _extract_job_certifications(description: str) -> List[str]:
     """Extract required certifications from job description"""
     return _extract_certifications(description)
 
+
+# Register candidate assessment routes (take-assessment, submit-assessment)
+from candidate_assessment import register_assessment_routes
+register_assessment_routes(app)
 
 # Mount static files for templates
 app.mount("/templates", StaticFiles(directory="templates"), name="templates")

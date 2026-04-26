@@ -148,6 +148,8 @@ def _build_page() -> str:
             <option value="">All Statuses</option>
             <option value="reviewed">Reviewed</option>
             <option value="shortlisted">Shortlisted</option>
+            <option value="interview_scheduled">Interviewing</option>
+            <option value="interview_passed">Passed Interview</option>
             <option value="evaluated">Evaluated</option>
           </select>
         </div>
@@ -315,6 +317,28 @@ def _build_page() -> str:
           onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'">
         </textarea>
       </div>
+
+      <!-- Interview Outcome -->
+      <div style="margin-top:20px;">
+        <div style="font-family:'Sora',sans-serif;font-size:13px;font-weight:700;
+                    text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:12px;">
+          Interview Result
+        </div>
+        <div style="display:flex;gap:12px;">
+          <label style="flex:1;cursor:pointer;">
+            <input type="radio" name="interviewResult" value="passed" style="display:none;" id="resPass" checked>
+            <div class="res-btn" onclick="document.getElementById('resPass').checked=true" id="btnPass">
+              Hire Candidate
+            </div>
+          </label>
+          <label style="flex:1;cursor:pointer;">
+            <input type="radio" name="interviewResult" value="failed" style="display:none;" id="resFail">
+            <div class="res-btn fail" onclick="document.getElementById('resFail').checked=true" id="btnFail">
+              Reject Candidate
+            </div>
+          </label>
+        </div>
+      </div>
     </div>
 
     <!-- Modal footer -->
@@ -381,6 +405,8 @@ def _build_page() -> str:
 }}
 .sb-reviewed    {{ background:var(--blue-lt);color:var(--blue); }}
 .sb-shortlisted {{ background:#E8F8F0;color:var(--green); }}
+.sb-interview_scheduled {{ background:var(--blue-lt);color:var(--blue); }}
+.sb-interview_passed    {{ background:#E8F8F0;color:var(--green); }}
 .sb-evaluated   {{ background:#EDE9FF;color:#6B4FDB; }}
 .sb-default     {{ background:var(--bg);color:var(--ink3); }}
 
@@ -451,6 +477,13 @@ def _build_page() -> str:
 .act-edit:hover  {{ background:#FDE68A; }}
 .act-del   {{ background:var(--red-lt);color:var(--red); }}
 .act-del:hover   {{ background:#FCA5A5; }}
+
+.res-btn {{
+  padding:12px;border-radius:10px;text-align:center;font-weight:700;font-size:13.5px;
+  border:2px solid var(--border);color:var(--ink2);transition:all 0.2s;
+}}
+input[value="passed"]:checked + .res-btn {{ border-color:var(--green);background:#E8F8F0;color:var(--green); }}
+input[value="failed"]:checked + .res-btn {{ border-color:var(--red);background:#FFF5F5;color:var(--red); }}
 </style>
 
 <script>
@@ -514,7 +547,13 @@ function _appCard(a, i) {{
   const sc = a.resume_score;
   const scHtml = sc ? `<span class="scb ${{sc >= 70 ? 'scb-h' : sc >= 50 ? 'scb-m' : 'scb-l'}}">${{sc}}/100</span>` : '<span class="scb scb-n">N/A</span>';
   const status = (a.status || 'reviewed').toLowerCase();
-  const sbCls = {{reviewed:'sb-reviewed', shortlisted:'sb-shortlisted', evaluated:'sb-evaluated'}}[status] || 'sb-default';
+  const sbCls = {{
+    reviewed: 'sb-reviewed',
+    shortlisted: 'sb-shortlisted',
+    interview_scheduled: 'sb-interview_scheduled',
+    interview_passed: 'sb-interview_passed',
+    evaluated: 'sb-evaluated'
+  }}[status] || 'sb-default';
   const date = a.application_date ? new Date(a.application_date).toLocaleDateString('en-US',{{month:'short',day:'numeric',year:'numeric'}}) : '—';
   return `<div class="app-card" onclick="openModal(${{a.application_id}})" style="animation-delay:${{i*0.04}}s;">
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
@@ -730,13 +769,17 @@ async function saveEvaluation() {{
   const overall = parseFloat(document.getElementById('overallDisplay').textContent);
   const feedback = document.getElementById('feedbackText').value;
 
+  const passed = document.querySelector('input[name="interviewResult"]:checked').value === 'passed';
+  const newStatus = passed ? 'hiring_approved' : 'rejected';
+
   try {{
     const r = await fetch('/api/save-evaluation', {{
       method:'POST', headers:{{'Content-Type':'application/json'}},
       body: JSON.stringify({{
         application_id: _currentApp.application_id,
         evaluator_id: 1,
-        scores, feedback, overall_score: overall
+        scores, feedback, overall_score: overall,
+        status: newStatus
       }})
     }});
     btn.textContent = 'Save Evaluation';
@@ -878,6 +921,7 @@ async def delete_evaluation(evaluation_id: int):
 async def save_evaluation(request: Request):
     try:
         data = await request.json()
+        print(f"[DEBUG] Received evaluation save request: {data}")
         success = db.save_evaluation(
             application_id=data['application_id'],
             evaluator_id=data['evaluator_id'],
@@ -885,6 +929,15 @@ async def save_evaluation(request: Request):
             feedback=data['feedback'],
             overall_score=data['overall_score']
         )
+        
+        # Update application status if provided (Sync error is non-fatal for evaluation saving)
+        if success and 'status' in data:
+            try:
+                db.update_application_status(data['application_id'], data['status'])
+            except Exception as e:
+                print(f"[SYNC ERROR] Non-fatal sync error: {e}")
+                # We still return success: true because the evaluation itself was saved
+            
         if success:
             return JSONResponse(content={"success": True})
         return JSONResponse(content={"error": "Failed to save evaluation"}, status_code=500)

@@ -165,6 +165,48 @@ body {
   width: 1px; height: 26px; background: var(--border);
   margin: 0 8px; flex-shrink: 0;
 }
+
+/* ══ DIALOG (replaces alert/confirm/prompt) ═══════════════ */
+.tf-backdrop{
+  position:fixed; inset:0; z-index:99998;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(15,18,30,0.55);
+  padding:20px;
+}
+.tf-backdrop.show{ display:flex; }
+.tf-dialog{
+  width:min(720px, 96vw);
+  background:var(--white);
+  border:1px solid var(--border);
+  border-radius:16px;
+  box-shadow:var(--shadow-md);
+  overflow:hidden;
+  animation:fadeUp 0.18s ease;
+}
+.tf-dialog-hd{
+  padding:16px 16px 12px 16px;
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  border-bottom:1px solid var(--border);
+}
+.tf-dialog-title{ font-family:'Sora',sans-serif; font-weight:800; font-size:14px; color:var(--ink); }
+.tf-dialog-bd{ padding:16px; color:var(--ink2); font-size:13.5px; line-height:1.55; }
+.tf-dialog-ft{
+  padding:14px 16px;
+  display:flex; gap:10px; justify-content:flex-end; align-items:center;
+  border-top:1px solid var(--border);
+  background:linear-gradient(to bottom, rgba(238,242,247,0.35), rgba(238,242,247,0));
+}
+.tf-input{
+  width:100%;
+  padding:10px 12px;
+  border-radius:10px;
+  border:1.5px solid var(--border);
+  background:var(--white);
+  font-family:'DM Sans',sans-serif;
+  font-size:13.5px;
+  outline:none;
+}
+.tf-input:focus{ border-color:rgba(59,111,232,0.55); box-shadow:0 0 0 3px rgba(59,111,232,0.12); }
 .tn-right {
   display: flex; align-items: center; gap: 10px;
   margin-left: auto; flex-shrink: 0;
@@ -512,7 +554,9 @@ select.form-ctrl { cursor:pointer; }
 NAV_ITEMS = [
     ("dashboard",      "Overview",       "📊"),
     ("jobs",           "Job Management", "💼"),
+    ("ai-screening",   "AI Screening",   "🧠"),
     ("interviews",     "Interviews",     "📅"),
+    ("assessments",    "Assessments",    "📋"),
     ("communications", "Messages",       "✉️"),
     ("offers",         "Offers",         "📝"),
     ("evaluations",    "Evaluation",     "📝"),
@@ -528,11 +572,14 @@ NAV_ICONS = {
     "dashboard":      '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
     "jobs":           '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>',
     "interviews":     '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
-    "communications": '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
     "offers":         '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
     "Evaluations":    '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+    "assessments":    '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2h-4"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>',
     "reports":        '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
     "post-job":       '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+    "ai-screening":   '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>',
+    "communications": '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
+   
 }
 
 
@@ -600,6 +647,16 @@ def _build_topnav(current_page: str, current_user: str) -> str:
   </div>
 </nav>
 <div id="toasts"></div>
+<div class="tf-backdrop" id="tfBackdrop" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="tf-dialog" role="document" aria-labelledby="tfDialogTitle">
+    <div class="tf-dialog-hd">
+      <div class="tf-dialog-title" id="tfDialogTitle">Confirm</div>
+      <button class="btn btn-sm btn-outline" onclick="window.tfDialog?.close(false)">Close</button>
+    </div>
+    <div class="tf-dialog-bd" id="tfDialogBody"></div>
+    <div class="tf-dialog-ft" id="tfDialogFooter"></div>
+  </div>
+</div>
 """
 
 
@@ -629,6 +686,108 @@ const showSuccess = (m,t='Success') => showToast(t,m,'success');
 const showError   = (m,t='Error')   => showToast(t,m,'error',  8000);
 const showWarning = (m,t='Warning') => showToast(t,m,'warning',6000);
 const showInfo    = (m,t='Info')    => showToast(t,m,'info',   4000);
+
+// Professional dialogs (avoid "localhost says..." browser popups)
+window.tfDialog = (function(){
+  let resolver = null;
+  function _els(){
+    return {
+      back: document.getElementById('tfBackdrop'),
+      title: document.getElementById('tfDialogTitle'),
+      body: document.getElementById('tfDialogBody'),
+      foot: document.getElementById('tfDialogFooter'),
+    };
+  }
+  function _open({title='Confirm', bodyHtml='', footerButtons=[]}){
+    const {back, title:ti, body, foot} = _els();
+    if(!back) return;
+    ti.textContent = title;
+    body.innerHTML = bodyHtml;
+    foot.innerHTML = '';
+    footerButtons.forEach(btn => foot.appendChild(btn));
+    back.classList.add('show');
+    back.setAttribute('aria-hidden','false');
+  }
+  function close(val){
+    const {back, body, foot} = _els();
+    if(back){
+      back.classList.remove('show');
+      back.setAttribute('aria-hidden','true');
+      body.innerHTML = '';
+      foot.innerHTML = '';
+    }
+    if(resolver){ const r = resolver; resolver = null; r(val); }
+  }
+  function confirm({title='Confirm', message='Are you sure?', okText='Confirm', cancelText='Cancel', danger=false}){
+    return new Promise((resolve) => {
+      resolver = resolve;
+      const ok = document.createElement('button');
+      ok.className = danger ? 'btn btn-danger' : 'btn btn-primary';
+      ok.textContent = okText;
+      ok.onclick = () => close(true);
+
+      const cancel = document.createElement('button');
+      cancel.className = 'btn btn-outline';
+      cancel.textContent = cancelText;
+      cancel.onclick = () => close(false);
+
+      _open({
+        title,
+        bodyHtml: `<div style="white-space:pre-wrap;">${String(message||'')}</div>`,
+        footerButtons: [cancel, ok],
+      });
+    });
+  }
+  function prompt({title='Input', label='Reason', placeholder='', defaultValue='', okText='Save', cancelText='Cancel', multiline=true}){
+    return new Promise((resolve) => {
+      resolver = resolve;
+      const id = 'tfPromptInput';
+      const inputHtml = multiline
+        ? `<textarea class="tf-input" id="${id}" rows="4" placeholder="${placeholder}"></textarea>`
+        : `<input class="tf-input" id="${id}" placeholder="${placeholder}" />`;
+
+      const ok = document.createElement('button');
+      ok.className = 'btn btn-primary';
+      ok.textContent = okText;
+      ok.onclick = () => {
+        const el = document.getElementById(id);
+        close(el ? el.value : '');
+      };
+
+      const cancel = document.createElement('button');
+      cancel.className = 'btn btn-outline';
+      cancel.textContent = cancelText;
+      cancel.onclick = () => close(null);
+
+      _open({
+        title,
+        bodyHtml: `
+          <div style="font-size:12px;font-weight:800;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">${label}</div>
+          ${inputHtml}
+        `,
+        footerButtons: [cancel, ok],
+      });
+
+      const el = document.getElementById(id);
+      if(el){
+        el.value = defaultValue || '';
+        setTimeout(()=>el.focus(), 40);
+      }
+    });
+  }
+  // Close on backdrop click / Esc
+  document.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape'){
+      const back = document.getElementById('tfBackdrop');
+      if(back && back.classList.contains('show')) close(false);
+    }
+  });
+  document.addEventListener('click', (e) => {
+    const back = document.getElementById('tfBackdrop');
+    if(back && e.target === back && back.classList.contains('show')) close(false);
+  });
+  return { confirm, prompt, close };
+})();
 
 // Global search — pages can override this
 function globalSearchFn(q) {
@@ -1053,6 +1212,28 @@ async def login(request: Request):
         content=Template(LOGIN_HTML).render(error="Invalid email or password"),
         status_code=401,
     )
+
+
+@app.get("/sso/hr")
+async def hr_sso_login(request: Request):
+    """
+    One-click SSO for HRMS → recruitment portal.
+    HRMS redirects here with a shared secret; we create an HR session and redirect to the requested page.
+    """
+    token = (request.query_params.get("token") or "").strip()
+    next_path = (request.query_params.get("next") or "/post-job").strip()
+    if not next_path.startswith("/"):
+        next_path = "/post-job"
+
+    expected = os.getenv("TALENTFLOW_HR_SSO_TOKEN", "").strip()
+    if not expected or not token or not secrets.compare_digest(expected, token):
+        return HTMLResponse(content="Unauthorized", status_code=403)
+
+    email = os.getenv("TALENTFLOW_HR_SSO_EMAIL", "angelbrenna20@gmail.com").strip() or "angelbrenna20@gmail.com"
+    sess = create_session(email)
+    resp = RedirectResponse(url=next_path, status_code=302)
+    resp.set_cookie("hr_token", sess, httponly=True)
+    return resp
 
 
 @app.get("/logout")

@@ -9,10 +9,11 @@ db = ResumeDatabase()
 
 # status meta
 _STATUS = {
-    "pending":   ("badge-amber",   "Pending"),
+    "draft":     ("badge-neutral", "Draft"),
     "sent":      ("badge-blue",    "Sent"),
     "accepted":  ("badge-green",   "Accepted"),
     "rejected":  ("badge-red",     "Rejected"),
+    "hired":     ("badge-purple",  "Hired"),
     "withdrawn": ("badge-neutral", "Withdrawn"),
 }
 _BADGE_CSS = {
@@ -20,6 +21,7 @@ _BADGE_CSS = {
     "badge-blue":    "background:var(--blue-lt);color:var(--blue);",
     "badge-green":   "background:#E8F8F0;color:var(--green);",
     "badge-red":     "background:var(--red-lt);color:var(--red);",
+    "badge-purple":  "background:#F3E8FF;color:#7E22CE;",
     "badge-neutral": "background:var(--bg);color:var(--ink3);border:1px solid var(--border);",
 }
 
@@ -41,21 +43,26 @@ async def offer_management(request: Request):
     today    = datetime.now().strftime("%Y-%m-%d")
     min_start = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
 
-    shortlisted = [a for a in applications if (a.get("status") or "").lower() == "shortlisted"]
-    app_opts = '<option value="">Select shortlisted applicant…</option>'
-    for a in shortlisted:
+    # Prefer post-evaluation candidates, but keep legacy compatibility
+    # so existing interview_passed records can still move to offer stage.
+    candidates = [
+        a for a in applications
+        if (a.get("status") or "").lower() in ("hiring_approved", "interview_passed")
+    ]
+    app_opts = '<option value="">Select candidate…</option>'
+    for a in candidates:
         app_opts += f'<option value="{a.get("id",0)}">{a.get("applicant_name","N/A")} — {a.get("job_title","N/A")}</option>'
-    if not shortlisted:
-        app_opts = '<option value="">No shortlisted applicants yet</option>'
+    if not candidates:
+        app_opts = '<option value="">No candidates ready for offer yet</option>'
 
     # Stat counts
     total_offers    = len(offers) if offers else 0
-    pending_cnt     = sum(1 for o in (offers or []) if (o.get("status") or "").lower() in ("pending", "sent"))
+    pending_cnt     = sum(1 for o in (offers or []) if (o.get("status") or "").lower() in ("draft", "pending", "sent"))
     accepted_cnt    = sum(1 for o in (offers or []) if (o.get("status") or "").lower() == "accepted")
     rejected_cnt    = sum(1 for o in (offers or []) if (o.get("status") or "").lower() == "rejected")
 
     # Active offers cards
-    active_offers = [o for o in (offers or []) if (o.get("status") or "pending").lower() in ("pending", "sent")]
+    active_offers = [o for o in (offers or []) if (o.get("status") or "pending").lower() in ("draft", "pending", "sent")]
     active_html   = _build_offer_cards(active_offers)
 
     page = f"""
@@ -538,8 +545,25 @@ function viewOffer(id) {{
           <tr><td>Deadline</td><td>${{escHtml(o.response_deadline||'No deadline')}}</td></tr>
         </table>
         ${{o.benefits?`<div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink3);margin-bottom:6px;">Benefits</div><div class="od-notes">${{escHtml(o.benefits)}}</div>`:''}}
-        <div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;">
-          ${{s==='pending'?`<button class="btn btn-primary" onclick="closeViewOffer();sendOffer(${{id}})"><svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='22' y1='2' x2='11' y2='13'/><polygon points='22 2 15 22 11 13 2 9 22 2'/></svg> Send Offer</button>`
+        <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
+          <div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink3);margin-bottom:8px;">Update Status</div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <select class="form-ctrl" id="offerStatusSelect" style="flex:1;">
+              <option value="draft" ${{s==='draft'?'selected':''}}>Draft</option>
+              <option value="sent" ${{s==='sent'?'selected':''}}>Sent</option>
+              <option value="accepted" ${{s==='accepted'?'selected':''}}>Accepted</option>
+              <option value="rejected" ${{s==='rejected'?'selected':''}}>Rejected</option>
+              <option value="hired" ${{s==='hired'?'selected':''}}>Hired (Sync to HRMS)</option>
+              <option value="withdrawn" ${{s==='withdrawn'?'selected':''}}>Withdrawn</option>
+            </select>
+            <button class="btn btn-primary" onclick="updateOfferStatus(${{id}})">Update</button>
+          </div>
+          ${{s === 'hired' ? '<div style="margin-top:8px; font-size:11px; color:var(--green); font-weight:700;">✓ Synced to TalentFlow HRMS</div>' : ''}}
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:24px;flex-wrap:wrap;">
+          ${{s==='accepted' ? `<button class="btn btn-success" onclick="closeViewOffer();updateOfferStatus(${{o.id}}, 'hired')"><svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2.5'><path d='M22 11.08V12a10 10 0 1 1-5.93-9.14'/><polyline points='22 4 12 14.01 9 11.01'/></svg> Finalize Hire & Sync</button>` : ''}}
+          ${{s==='draft' || s==='pending' ?`<button class="btn btn-primary" onclick="closeViewOffer();sendOffer(${{id}})"><svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='22' y1='2' x2='11' y2='13'/><polygon points='22 2 15 22 11 13 2 9 22 2'/></svg> Send Offer</button>`
             : s==='sent'?`<button class="btn btn-danger" onclick="closeViewOffer();withdrawOffer(${{id}})"><svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><polyline points='9 14 4 9 9 4'/><path d='M20 20v-7a4 4 0 0 0-4-4H4'/></svg> Withdraw</button>`:''}}
           <button class="btn btn-outline" onclick="closeViewOffer()">Close</button>
         </div>`;
@@ -549,6 +573,28 @@ function viewOffer(id) {{
 function closeViewOffer() {{ document.getElementById('viewOfferModal').style.display='none'; }}
 
 // ── SEND / WITHDRAW / DELETE ───────────────────────────
+function updateOfferStatus(id, manualStatus = null) {{
+  const status = manualStatus || document.getElementById('offerStatusSelect').value;
+  if (!confirm(`Update offer status to "${{status}}"?` + (status === 'hired' ? '\\n\\nIMPORTANT: This will finalize the recruitment and push the new employee data to the TalentFlow HRMS.' : ''))) return;
+  
+  fetch('/api/update-offer-status', {{
+    method: 'POST',
+    headers: {{ 'Content-Type': 'application/json' }},
+    body: JSON.stringify({{ offer_id: id, status: status }})
+  }})
+  .then(r => r.json())
+  .then(d => {{
+    if (d.success) {{
+      showToast('Status Updated', `Offer is now ${{status}}.`, 'success');
+      closeViewOffer();
+      setTimeout(() => location.reload(), 1000);
+    }} else {{
+      showToast('Update Failed', d.error || 'Failed to update.', 'error');
+    }}
+  }})
+  .catch(err => showToast('Network Error', err.message, 'error'));
+}}
+
 function sendOffer(id) {{
   if (!confirm('Send this offer to the candidate now?')) return;
   fetch('/api/send-offer/'+id, {{method:'POST'}})
@@ -610,7 +656,7 @@ function loadOfferHistory() {{
           </div>
           <div class="offer-actions">
             <button class="btn btn-outline btn-sm" onclick="viewOffer(${{o.id}})">View</button>
-            ${{s==='pending'?`<button class="btn btn-primary btn-sm" onclick="sendOffer(${{o.id}})">Send</button>`:''}}
+            ${{s==='draft' || s==='pending'?`<button class="btn btn-primary btn-sm" onclick="sendOffer(${{o.id}})">Send</button>`:''}}
             ${{s==='sent'?`<button class="btn btn-warn btn-sm" onclick="withdrawOffer(${{o.id}})">Withdraw</button>`:''}}
             <button class="btn btn-danger btn-sm" onclick="deleteOffer(${{o.id}})">Delete</button>
           </div>
@@ -700,7 +746,7 @@ def _build_offer_cards(offers: list) -> str:
   </div>
   <div class="offer-actions">
     <button class="btn btn-outline btn-sm" onclick="viewOffer({o.get('id',0)})">View</button>
-    {"<button class='btn btn-primary btn-sm' onclick='sendOffer(" + str(o.get('id',0)) + ")'><svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='22' y1='2' x2='11' y2='13'/><polygon points='22 2 15 22 11 13 2 9 22 2'/></svg> Send</button>" if status=="pending" else ""}
+    {"<button class='btn btn-primary btn-sm' onclick='sendOffer(" + str(o.get('id',0)) + ")'><svg width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><line x1='22' y1='2' x2='11' y2='13'/><polygon points='22 2 15 22 11 13 2 9 22 2'/></svg> Send</button>" if status in ["draft", "pending"] else ""}
     {"<button class='btn btn-warn btn-sm' onclick='withdrawOffer(" + str(o.get('id',0)) + ")'>Withdraw</button>" if status=="sent" else ""}
     <button class="btn btn-danger btn-sm" onclick="deleteOffer({o.get('id',0)})">Delete</button>
   </div>
@@ -727,6 +773,12 @@ async def create_offer(request: Request):
             location=data['location'], reporting_to=data['reporting_to'], offer_type=data['offer_type'],
             benefits=data.get('benefits',''), offer_details=data.get('offer_details',''),
             response_deadline=data.get('response_deadline'), created_by=current_user)
+        # Reflect offer creation on applicant tracking immediately.
+        try:
+            db.update_application_status(data['application_id'], 'offer_made')
+        except Exception:
+            # Non-fatal: offer was created successfully.
+            pass
         return JSONResponse(content={"success": True, "offer_id": offer_id})
     except Exception as e:
         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
@@ -816,6 +868,46 @@ async def get_offer_history(request: Request):
         return JSONResponse(content={"success": True, "offers": offers})
     except Exception as e:
         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/api/update-offer-status")
+async def update_offer_status_route(request: Request):
+    current_user = get_current_user(request)
+    if not current_user:
+        return JSONResponse(content={"success": False, "error": "Unauthorized"}, status_code=401)
+    
+    try:
+        data = await request.json()
+        offer_id = data.get('offer_id')
+        status = data.get('status')
+        
+        if not offer_id or not status:
+            return JSONResponse(content={"success": False, "error": "Missing parameters"}, status_code=400)
+            
+        # Get offer to find application_id
+        offer = db.get_offer_details(offer_id)
+        if not offer:
+            return JSONResponse(content={"success": False, "error": "Offer not found"}, status_code=404)
+            
+        # 1. Update Offer Status
+        success = db.update_offer_status(offer_id, status)
+        
+        # 2. If HIRED, update application status (which triggers HRMS sync in database.py)
+        if success and status.lower() == 'hired':
+            app_id = offer.get('application_id')
+            if app_id:
+                try:
+                    db.update_application_status(app_id, 'hired', strict_sync=True)
+                except Exception as sync_e:
+                    # Rollback the offer status if sync fails
+                    db.update_offer_status(offer_id, 'accepted')
+                    return JSONResponse(content={"success": False, "error": str(sync_e)}, status_code=400)
+                
+        return JSONResponse(content={"success": True})
+        
+    except Exception as e:
+        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
+
 
 
 # Keep legacy POST routes for compatibility

@@ -1,7 +1,11 @@
 import sqlite3
 import json
+import os
+import re
 from datetime import datetime
 from typing import List, Dict, Optional
+import urllib.request
+import json
 
 class ResumeDatabase:
     def __init__(self, db_path="resumes.db"):
@@ -24,6 +28,8 @@ class ResumeDatabase:
                 department TEXT,
                 application_date TEXT,
                 status TEXT DEFAULT 'pending',
+                consent_to_store_cv BOOLEAN DEFAULT 0,
+                consent_date TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
         ''')
@@ -66,6 +72,8 @@ class ResumeDatabase:
                 score REAL,
                 features TEXT,
                 recommendations TEXT,
+                match_summary TEXT,
+                matched_skills TEXT,
                 filename TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (applicant_id) REFERENCES applicants (id)
@@ -217,19 +225,247 @@ class ResumeDatabase:
             )
         ''')
         
+        # Create assessments table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS assessments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                job_id INTEGER,
+                description TEXT,
+                time_limit_minutes INTEGER DEFAULT 30,
+                passing_score REAL DEFAULT 70.0,
+                created_by TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                is_active INTEGER DEFAULT 1,
+                FOREIGN KEY (job_id) REFERENCES jobs(id)
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS assessment_questions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                assessment_id INTEGER,
+                question_text TEXT NOT NULL,
+                question_type TEXT DEFAULT 'multiple_choice',
+                options TEXT,
+                correct_answer TEXT,
+                points INTEGER DEFAULT 10,
+                order_num INTEGER DEFAULT 0,
+                FOREIGN KEY (assessment_id) REFERENCES assessments(id)
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS assessment_invites (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                application_id INTEGER UNIQUE,
+                assessment_id INTEGER,
+                token TEXT UNIQUE NOT NULL,
+                invited_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                expires_at TEXT,
+                status TEXT DEFAULT 'pending',
+                FOREIGN KEY (application_id) REFERENCES job_applications(id),
+                FOREIGN KEY (assessment_id) REFERENCES assessments(id)
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS assessment_results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                invite_id INTEGER UNIQUE,
+                application_id INTEGER,
+                assessment_id INTEGER,
+                score REAL DEFAULT 0,
+                max_score REAL DEFAULT 0,
+                percentage REAL DEFAULT 0,
+                status TEXT DEFAULT 'pending',
+                started_at TEXT,
+                completed_at TEXT,
+                answers TEXT,
+                cheating_flags TEXT,
+                tab_switch_count INTEGER DEFAULT 0,
+                passed INTEGER DEFAULT 0,
+                FOREIGN KEY (invite_id) REFERENCES assessment_invites(id)
+            )
+        ''')
+        
         conn.commit()
         conn.close()
-    
+
+    # ── ASSESSMENT METHODS ─────────────────────────────────────────────────────
+
+    def create_assessment(self, title: str, job_id: int, description: str = '', 
+                          time_limit: int = 30, passing_score: float = 70.0,
+                          created_by: str = None) -> int:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''INSERT INTO assessments (title, job_id, description, time_limit_minutes, passing_score, created_by)
+                          VALUES (?, ?, ?, ?, ?, ?)''',
+                       (title, job_id, description, time_limit, passing_score, created_by))
+        aid = cursor.lastrowid
+        conn.commit(); conn.close()
+        return aid
+
+    def add_assessment_question(self, assessment_id: int, question_text: str, question_type: str = 'multiple_choice',
+                                options: list = None, correct_answer: str = None, points: int = 10, order_num: int = 0) -> int:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''INSERT INTO assessment_questions (assessment_id, question_text, question_type, options, correct_answer, points, order_num)
+                          VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                       (assessment_id, question_text, question_type, json.dumps(options or []), correct_answer, points, order_num))
+        qid = cursor.lastrowid
+        conn.commit(); conn.close()
+        return qid
+
+    def get_assessment(self, assessment_id: int) -> Dict:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM assessments WHERE id = ?', (assessment_id,))
+        row = cursor.fetchone()
+        conn.close()
+        if not row:
+            return None
+        cols = ['id','title','job_id','description','time_limit_minutes','passing_score','created_by','created_at','is_active']
+        return dict(zip(cols, row))
+
+    def get_assessment_questions(self, assessment_id: int) -> List[Dict]:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM assessment_questions WHERE assessment_id = ? ORDER BY order_num', (assessment_id,))
+        rows = cursor.fetchall(); conn.close()
+        cols = ['id','assessment_id','question_text','question_type','options','correct_answer','points','order_num']
+        questions = []
+        for row in rows:
+            q = dict(zip(cols, row))
+            try: q['options'] = json.loads(q['options'] or '[]')
+            except: q['options'] = []
+            questions.append(q)
+        return questions
+
+    def update_assessment_question(self, question_id: int, question_text: str,
+                                   question_type: str = 'multiple_choice', options: list = None,
+                                   correct_answer: str = None, points: int = 10) -> bool:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''UPDATE assessment_questions
+                          SET question_text = ?, question_type = ?, options = ?, correct_answer = ?, points = ?
+                          WHERE id = ?''',
+                       (question_text, question_type, json.dumps(options or []), correct_answer, points, question_id))
+        success = cursor.rowcount > 0
+        conn.commit(); conn.close()
+        return success
+
+    def delete_assessment_question(self, question_id: int) -> bool:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM assessment_questions WHERE id = ?', (question_id,))
+        success = cursor.rowcount > 0
+        conn.commit(); conn.close()
+        return success
+
+    def get_all_assessments(self) -> List[Dict]:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''SELECT a.*, j.title as job_title,
+                          (SELECT COUNT(*) FROM assessment_questions WHERE assessment_id=a.id) as question_count,
+                          (SELECT COUNT(*) FROM assessment_invites WHERE assessment_id=a.id) as invite_count
+                          FROM assessments a LEFT JOIN jobs j ON a.job_id=j.id ORDER BY a.created_at DESC''')
+        rows = cursor.fetchall(); conn.close()
+        cols = ['id','title','job_id','description','time_limit_minutes','passing_score','created_by','created_at','is_active','job_title','question_count','invite_count']
+        return [dict(zip(cols, r)) for r in rows]
+
+    def create_assessment_invite(self, application_id: int, assessment_id: int, token: str, expires_at: str = None) -> int:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute('''INSERT OR REPLACE INTO assessment_invites (application_id, assessment_id, token, expires_at)
+                              VALUES (?, ?, ?, ?)''',
+                           (application_id, assessment_id, token, expires_at))
+            iid = cursor.lastrowid
+            conn.commit()
+        except Exception as e:
+            conn.close(); raise e
+        conn.close()
+        return iid
+
+    def get_invite_by_token(self, token: str) -> Dict:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''SELECT i.*, a.name as applicant_name, a.email as applicant_email,
+                          j.title as job_title, ai.title as assessment_title, ai.time_limit_minutes, ai.passing_score
+                          FROM assessment_invites i
+                          JOIN job_applications ja ON i.application_id = ja.id
+                          JOIN applicants a ON ja.applicant_id = a.id
+                          JOIN jobs j ON ja.job_id = j.id
+                          JOIN assessments ai ON i.assessment_id = ai.id
+                          WHERE i.token = ?''', (token,))
+        row = cursor.fetchone(); conn.close()
+        if not row: return None
+        cols = ['id','application_id','assessment_id','token','invited_at','expires_at','status',
+                'applicant_name','applicant_email','job_title','assessment_title','time_limit_minutes','passing_score']
+        return dict(zip(cols, row))
+
+    def save_assessment_result(self, invite_id: int, application_id: int, assessment_id: int,
+                               score: float, max_score: float, answers: dict, 
+                               tab_switch_count: int = 0, cheating_flags: list = None) -> int:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        percentage = (score / max_score * 100) if max_score > 0 else 0
+        cursor.execute('SELECT passing_score FROM assessments WHERE id = ?', (assessment_id,))
+        row = cursor.fetchone()
+        passing = row[0] if row else 70.0
+        passed = 1 if percentage >= passing else 0
+        cursor.execute('''INSERT OR REPLACE INTO assessment_results 
+                          (invite_id, application_id, assessment_id, score, max_score, percentage, status, completed_at, answers, cheating_flags, tab_switch_count, passed)
+                          VALUES (?, ?, ?, ?, ?, ?, 'completed', ?, ?, ?, ?, ?)''',
+                       (invite_id, application_id, assessment_id, score, max_score, percentage,
+                        datetime.now().isoformat(), json.dumps(answers),
+                        json.dumps(cheating_flags or []), tab_switch_count, passed))
+        # Mark invite as completed
+        cursor.execute('UPDATE assessment_invites SET status = ? WHERE id = ?',
+                       ('completed' if passed else 'failed', invite_id))
+        rid = cursor.lastrowid
+        conn.commit(); conn.close()
+        return rid
+
+    def get_assessment_result_for_application(self, application_id: int) -> Dict:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''SELECT ar.*, ai.assessment_title
+                          FROM assessment_results ar
+                          LEFT JOIN assessment_invites ai ON ar.invite_id = ai.id
+                          WHERE ar.application_id = ?
+                          ORDER BY ar.completed_at DESC LIMIT 1''', (application_id,))
+        row = cursor.fetchone(); conn.close()
+        if not row: return None
+        cols = ['id','invite_id','application_id','assessment_id','score','max_score','percentage',
+                'status','started_at','completed_at','answers','cheating_flags','tab_switch_count','passed','assessment_title']
+        return dict(zip(cols, row))
+
+    def get_all_assessment_results(self) -> List[Dict]:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''SELECT ar.*, a.name as applicant_name, a.email as applicant_email,
+                          j.title as job_title, ass.title as assessment_title
+                          FROM assessment_results ar
+                          JOIN job_applications ja ON ar.application_id = ja.id
+                          JOIN applicants a ON ja.applicant_id = a.id
+                          JOIN jobs j ON ja.job_id = j.id
+                          JOIN assessments ass ON ar.assessment_id = ass.id
+                          ORDER BY ar.completed_at DESC''')
+        rows = cursor.fetchall(); conn.close()
+        cols = ['id','invite_id','application_id','assessment_id','score','max_score','percentage',
+                'status','started_at','completed_at','answers','cheating_flags','tab_switch_count','passed',
+                'applicant_name','applicant_email','job_title','assessment_title']
+        return [dict(zip(cols, r)) for r in rows]
+
     def add_applicant(self, name: str, email: str = None, phone: str = None, 
-                    position: str = None, department: str = None) -> int:
+                    position: str = None, department: str = None, consent: bool = False) -> int:
         """Add a new applicant"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
         cursor.execute('''
-            INSERT INTO applicants (name, email, phone, position, department, application_date)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (name, email, phone, position, department, datetime.now().isoformat()))
+            INSERT INTO applicants (name, email, phone, position, department, application_date, consent_to_store_cv, consent_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (name, email, phone, position, department, datetime.now().isoformat(), consent, datetime.now().isoformat() if consent else None))
         
         applicant_id = cursor.lastrowid
         conn.commit()
@@ -238,17 +474,17 @@ class ResumeDatabase:
         return applicant_id
     
     def save_resume_score(self, applicant_id: int, resume_text: str, score: float, 
-                        features: Dict, recommendations: List[str], filename: str = None) -> int:
+                        features: Dict, recommendations: List[str], filename: str = None,
+                        match_summary: str = None, matched_skills: str = None) -> int:
         """Save resume score and analysis"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
         cursor.execute('''
             INSERT INTO resume_scores 
-            (applicant_id, resume_text, score, features, recommendations, filename)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (applicant_id, resume_text, score, json.dumps(features), 
-               json.dumps(recommendations), filename))
+            (applicant_id, resume_text, score, features, recommendations, match_summary, matched_skills, filename)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (applicant_id, resume_text, score, json.dumps(features), json.dumps(recommendations), match_summary, matched_skills, filename))
         
         score_id = cursor.lastrowid
         conn.commit()
@@ -281,10 +517,21 @@ class ResumeDatabase:
             applicant = dict(zip(columns, result))
             
             # Parse JSON fields
-            if applicant['features']:
-                applicant['features'] = json.loads(applicant['features'])
-            if applicant['recommendations']:
-                applicant['recommendations'] = json.loads(applicant['recommendations'])
+            if applicant['features'] and isinstance(applicant['features'], str):
+                try:
+                    applicant['features'] = json.loads(applicant['features'])
+                except:
+                    applicant['features'] = {}
+            elif not isinstance(applicant['features'], dict):
+                applicant['features'] = {}
+
+            if applicant['recommendations'] and isinstance(applicant['recommendations'], str):
+                try:
+                    applicant['recommendations'] = json.loads(applicant['recommendations'])
+                except:
+                    applicant['recommendations'] = []
+            elif not isinstance(applicant['recommendations'], list):
+                applicant['recommendations'] = []
             
             return applicant
         
@@ -453,17 +700,9 @@ class ResumeDatabase:
         ''')
         
         results = cursor.fetchall()
+        colnames = [d[0] for d in (cursor.description or [])]
         conn.close()
-        
-        columns = ['id', 'title', 'department', 'location', 'salary', 
-                  'description', 'requirements', 'posted_date', 'status']
-        
-        jobs = []
-        for result in results:
-            job = dict(zip(columns, result))
-            jobs.append(job)
-        
-        return jobs
+        return [dict(zip(colnames, row)) for row in results] if results and colnames else []
     
     def get_job(self, job_id: int) -> Optional[Dict]:
         """Get a specific job"""
@@ -472,12 +711,11 @@ class ResumeDatabase:
         
         cursor.execute('SELECT * FROM jobs WHERE id = ?', (job_id,))
         result = cursor.fetchone()
+        colnames = [d[0] for d in (cursor.description or [])]
         conn.close()
         
-        if result:
-            columns = ['id', 'title', 'department', 'location', 'salary', 
-                      'description', 'requirements', 'posted_date', 'status']
-            return dict(zip(columns, result))
+        if result and colnames:
+            return dict(zip(colnames, result))
         
         return None
     
@@ -576,19 +814,24 @@ class ResumeDatabase:
                 j.department,
                 a.name as applicant_name,
                 a.email as applicant_email,
-                rs.score as resume_score
+                a.phone as applicant_phone,
+                rs.score as resume_score,
+                ai.ai_score,
+                ai.ai_status
             FROM job_applications ja
             JOIN jobs j ON ja.job_id = j.id
             JOIN applicants a ON ja.applicant_id = a.id
             LEFT JOIN resume_scores rs ON a.id = rs.applicant_id
-            ORDER BY ja.application_date DESC
+            LEFT JOIN ai_screening_results ai ON (ja.applicant_id = ai.applicant_id AND ja.job_id = ai.job_id)
+            ORDER BY rs.score DESC, ja.application_date DESC
         ''')
         
         results = cursor.fetchall()
         conn.close()
         
         columns = ['id', 'job_id', 'applicant_id', 'cover_letter', 'application_date', 'status',
-                  'job_title', 'department', 'applicant_name', 'applicant_email', 'resume_score']
+                  'job_title', 'department', 'applicant_name', 'applicant_email', 'applicant_phone', 
+                  'resume_score', 'ai_score', 'ai_status']
         
         applications = []
         for result in results:
@@ -596,21 +839,145 @@ class ResumeDatabase:
             applications.append(app)
         
         return applications
-    
-    def update_application_status(self, application_id: int, status: str) -> bool:
-        """Update application status"""
+
+    def check_existing_application(self, email: str, job_id: int) -> Optional[Dict]:
+        """Check if an applicant with this email has already applied for this job"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
         cursor.execute('''
-            UPDATE job_applications SET status = ? WHERE id = ?
-        ''', (status, application_id))
+            SELECT ja.* 
+            FROM job_applications ja
+            JOIN applicants a ON ja.applicant_id = a.id
+            WHERE a.email = ? AND ja.job_id = ?
+        ''', (email, job_id))
         
-        success = cursor.rowcount > 0
-        conn.commit()
+        result = cursor.fetchone()
         conn.close()
         
-        return success
+        if result:
+            columns = ['id', 'job_id', 'applicant_id', 'cover_letter', 'application_date', 'status']
+            return dict(zip(columns, result))
+        
+        return None
+    
+    def update_application_status(self, application_id: int, status: str, strict_sync: bool = False) -> bool:
+        """Update application status and sync with TalentFlow HRMS if hired.
+        
+        If strict_sync=True and HRMS sync fails, an exception is raised so
+        callers can rollback their own state transitions.
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                UPDATE job_applications SET status = ? WHERE id = ?
+            ''', (status, application_id))
+            
+            success = cursor.rowcount > 0
+            conn.commit()
+            
+            if success and status.lower() == 'hired':
+                try:
+                    self._sync_hired_to_talentflow(application_id)
+                except Exception as e:
+                    print(f"[SYNC ERROR] Failed to push to Laravel: {e}")
+                    if strict_sync:
+                        raise
+                    # Non-strict mode keeps local status even if external sync fails.
+                
+            return success
+        finally:
+            conn.close()
+
+    def _sync_hired_to_talentflow(self, application_id: int):
+        """Internal helper to push hired employee to Laravel HRMS"""
+        try:
+            # 1. Fetch full details
+            app = self.get_application_by_id(application_id)
+            if not app:
+                return
+
+            # 2. Prepare payload
+            name_parts = (app.get('applicant_name') or 'Hired Employee').split(' ', 1)
+            first_name = name_parts[0]
+            last_name = name_parts[1] if len(name_parts) > 1 else 'Employee'
+            latest_offer = self.get_latest_offer_by_application(application_id) or {}
+
+            raw_gender = (app.get('gender') or '').strip().lower()
+            if raw_gender not in ('male', 'female'):
+                raw_gender = os.getenv("TALENTFLOW_HRMS_DEFAULT_GENDER", "female").strip().lower()
+                if raw_gender not in ('male', 'female'):
+                    raw_gender = 'female'
+
+            def parse_salary_value(salary_text: str) -> float:
+                if not salary_text:
+                    return 0.0
+                nums = re.findall(r'\d+(?:\.\d+)?', salary_text.replace(',', ''))
+                if not nums:
+                    return 0.0
+                values = [float(n) for n in nums]
+                return values[0]
+
+            position_title = (
+                latest_offer.get('position_title')
+                or app.get('job_title')
+                or app.get('position')
+            )
+            department_name = latest_offer.get('department') or app.get('department')
+            salary_value = parse_salary_value(latest_offer.get('salary') or "")
+
+            payload = {
+                "first_name": first_name,
+                "last_name": last_name,
+                "email": app.get('applicant_email'),
+                "phone_number": app.get('phone'),
+                "gender": raw_gender,
+                "birth_date": app.get('birth_date'),
+                "basic_salary": salary_value,
+                "join_date": datetime.now().strftime("%Y-%m-%d")
+            }
+            if position_title:
+                payload["position_title"] = position_title
+            if department_name:
+                payload["department_name"] = department_name
+            # Remove empty/null values that can fail strict Laravel validation.
+            payload = {k: v for k, v in payload.items() if v not in (None, "")}
+
+            # 3. API Config (overridable via environment variables)
+            # Useful when Laravel runs on a different host/port or secret token.
+            url = os.getenv("TALENTFLOW_HRMS_URL", "http://localhost:8000/api/external-recruitment/hire")
+            token = os.getenv("TALENTFLOW_HRMS_TOKEN", "talentflow_secret_token_123")
+
+            req = urllib.request.Request(url, data=json.dumps(payload).encode(), headers={
+                "X-Recruitment-Token": token,
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }, method="POST")
+
+            with urllib.request.urlopen(req, timeout=10) as response:
+                res_body = json.loads(response.read().decode())
+                print(f"[TALENTFLOW SYNC] Successfully pushed {app.get('applicant_email')}")
+                
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode()
+            try:
+                error_json = json.loads(error_body)
+                error_msg = error_json.get('message', str(e))
+                if error_json.get('error'):
+                    error_msg += f" | {error_json.get('error')}"
+                if 'errors' in error_json:
+                    error_msg += " " + str(error_json['errors'])
+            except:
+                error_msg = error_body or str(e)
+            print(f"[TALENTFLOW SYNC ERROR] Failed to push hired employee: {error_msg}")
+            print(f"[TALENTFLOW SYNC ERROR] Payload: {payload}")
+            raise Exception(f"HRMS Sync Failed: {error_msg}")
+        except Exception as e:
+            print(f"[TALENTFLOW SYNC ERROR] Failed to push hired employee: {str(e)}")
+            print(f"[TALENTFLOW SYNC ERROR] Payload: {payload}")
+            raise Exception(f"HRMS Sync Failed: {str(e)}")
     
     def get_statistics(self) -> Dict:
         conn = sqlite3.connect(self.db_path)
@@ -671,6 +1038,12 @@ class ResumeDatabase:
               interviewer_name, interview_mode, meeting_link, location, notes))
         
         interview_id = cursor.lastrowid
+        
+        # Update application status
+        cursor.execute('''
+            UPDATE job_applications SET status = 'interview_scheduled' WHERE id = ?
+        ''', (application_id,))
+        
         conn.commit()
         conn.close()
         
@@ -997,7 +1370,7 @@ class ResumeDatabase:
                 o.offer_type,
                 o.salary as offer_salary,
                 o.start_date as offer_start_date,
-                o.position as offer_position,
+                o.position_title as offer_position,
                 o.department as offer_department
             FROM job_applications ja
             JOIN jobs j ON ja.job_id = j.id
@@ -1005,7 +1378,7 @@ class ResumeDatabase:
             LEFT JOIN resume_scores rs ON a.id = rs.applicant_id
             LEFT JOIN interviews i ON ja.id = i.application_id
             LEFT JOIN evaluations e ON ja.id = e.application_id
-            LEFT JOIN offer_letters o ON ja.id = o.application_id
+            LEFT JOIN job_offers o ON ja.id = o.application_id
             WHERE a.email = ?
             ORDER BY ja.application_date DESC
         ''', (email,))
@@ -1038,7 +1411,9 @@ class ResumeDatabase:
                 j.department,
                 a.name as applicant_name,
                 a.email as applicant_email,
-                rs.score as resume_score
+                a.phone,
+                rs.score as resume_score,
+                rs.resume_text
             FROM job_applications ja
             JOIN jobs j ON ja.job_id = j.id
             JOIN applicants a ON ja.applicant_id = a.id
@@ -1051,7 +1426,7 @@ class ResumeDatabase:
         
         if result:
             columns = ['id', 'job_id', 'applicant_id', 'cover_letter', 'application_date', 'status',
-                      'job_title', 'department', 'applicant_name', 'applicant_email', 'resume_score']
+                      'job_title', 'department', 'applicant_name', 'applicant_email', 'phone', 'resume_score', 'resume_text']
             return dict(zip(columns, result))
         return None
     
@@ -1093,6 +1468,22 @@ class ResumeDatabase:
             return dict(zip(columns, result))
         
         return None
+
+    def add_document(self, applicant_id: int, document_type: str, filename: str, file_path: str, file_size: int = 0) -> int:
+        """Add a document record for an applicant. Returns new document id."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            INSERT INTO documents (applicant_id, document_type, filename, file_path, file_size)
+            VALUES (?, ?, ?, ?, ?)
+            ''',
+            (int(applicant_id), str(document_type or "document"), str(filename or ""), str(file_path or ""), int(file_size or 0)),
+        )
+        doc_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return doc_id
 
     # Offers management methods for communications
     def update_communication(self, communication_id: int, subject: str = None, 
@@ -1420,6 +1811,30 @@ class ResumeDatabase:
             return dict(zip(columns, result))
         
         return None
+
+    def get_latest_offer_by_application(self, application_id: int) -> Optional[Dict]:
+        """Get the most recent job offer for one application."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, application_id, position_title, department, salary, start_date,
+                   location, reporting_to, offer_type, benefits, offer_details,
+                   response_deadline, status, created_by, created_at
+            FROM job_offers
+            WHERE application_id = ?
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+        ''', (application_id,))
+        result = cursor.fetchone()
+        conn.close()
+
+        if not result:
+            return None
+
+        columns = ['id', 'application_id', 'position_title', 'department', 'salary', 'start_date',
+                   'location', 'reporting_to', 'offer_type', 'benefits', 'offer_details',
+                   'response_deadline', 'status', 'created_by', 'created_at']
+        return dict(zip(columns, result))
     
     def update_offer_status(self, offer_id: int, status: str) -> bool:
         """Update offer status"""
@@ -1614,7 +2029,7 @@ class ResumeDatabase:
             JOIN job_applications ja ON a.id = ja.applicant_id
             JOIN jobs j ON ja.job_id = j.id
             LEFT JOIN resume_scores rs ON a.id = rs.applicant_id
-            WHERE ja.status IN ('reviewed', 'shortlisted', 'evaluated')
+            WHERE ja.status IN ('interview_passed')
             ORDER BY ja.application_date DESC
         ''')
         
@@ -1689,20 +2104,23 @@ class ResumeDatabase:
                     overall_score, feedback, datetime.now().isoformat()
                 ))
             
-            # Update application status to 'evaluated'
-            cursor.execute('''
-                UPDATE job_applications SET status = 'evaluated' WHERE id = ?
-            ''', (application_id,))
+            # Status update is handled by the caller or by separate update_application_status
             
             conn.commit()
             return True
             
         except Exception as e:
-            conn.rollback()
-            print(f"Error saving evaluation: {e}")
+            if conn:
+                conn.rollback()
+            # Log to a file we can read
+            log_path = os.path.join(os.path.dirname(__file__), "db_error.log")
+            with open(log_path, "a") as f:
+                f.write(f"[{datetime.now().isoformat()}] save_evaluation FAILED for app {application_id}: {str(e)}\n")
+            print(f"[DB ERROR] save_evaluation failed: {e}")
             return False
         finally:
-            conn.close()
+            if conn:
+                conn.close()
     
     def get_evaluation_by_application(self, application_id: int) -> Optional[Dict]:
         """Get existing evaluation for an application"""
@@ -1710,11 +2128,7 @@ class ResumeDatabase:
         cursor = conn.cursor()
         
         cursor.execute('''
-            SELECT e.*, 
-                   CASE WHEN e.evaluator_id IS NOT NULL 
-                        THEN (SELECT name FROM users WHERE id = e.evaluator_id LIMIT 1)
-                        ELSE e.interviewer_name 
-                   END as evaluator_name
+            SELECT e.*, e.interviewer_name as evaluator_name
             FROM evaluations e
             WHERE e.application_id = ?
         ''', (application_id,))

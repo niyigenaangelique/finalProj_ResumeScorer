@@ -19,6 +19,8 @@ from hr_offers import *
 from hr_reports import *
 from hr_post_job import *
 from hr_evaluation import *
+from hr_assessments import *
+from hr_ai_dashboard import *
 
 # Contact Messages API Endpoints
 @app.post("/api/contact-message")
@@ -186,6 +188,7 @@ if __name__ == "__main__":
     print("  • Reports: http://localhost:8003/reports")
     print("  • Evaluations: http://localhost:8003/evaluations")
     print("  • Post Job: http://localhost:8003/post-job")
+    print("  • AI Screening: http://localhost:8003/ai-screening")
     print("================================")
     print("Demo Credentials:")
     print("  Email: angelbrenna20@gmail.com")

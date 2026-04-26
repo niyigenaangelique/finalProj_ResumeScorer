@@ -5,6 +5,11 @@ from database import ResumeDatabase
 from simple_app import SimpleResumeScorer
 import os
 import secrets
+import pypdf
+import os
+import shutil
+import uuid
+from typing import Optional
 
 app = FastAPI(title="Job Application Portal", description="Modern Job Portal for Applicants and HR")
 
@@ -253,10 +258,7 @@ job_portal_template = """<!DOCTYPE html>
       </div>
     </div>
     {% else %}
-    <div style="grid-column:1/-1;text-align:center;padding:3rem;">
-      <h3 style="color:var(--muted);margin-bottom:1rem;">No open positions right now</h3>
-      <p style="color:var(--muted);">Check back soon or <a href="/track-application" style="color:var(--blue);">track your application</a>.</p>
-    </div>
+    <div style="grid-column:1/-1;"></div>
     {% endfor %}
   </div>
 </section>
@@ -290,8 +292,8 @@ job_portal_template = """<!DOCTYPE html>
         </div>
         
         <div class="form-group">
-          <label class="form-label">Resume Text *</label>
-          <textarea name="resume_text" class="form-textarea" placeholder="Paste your resume text here..." required></textarea>
+          <label class="form-label">Resume Text (Optional if file uploaded)</label>
+          <textarea name="resume_text" id="resume_text" class="form-textarea" placeholder="Paste your resume text here..."></textarea>
         </div>
         
         <div class="form-group">
@@ -305,8 +307,14 @@ job_portal_template = """<!DOCTYPE html>
             </label>
           </div>
         </div>
+        <div class="form-group" style="margin-top:1rem; display:flex; align-items:flex-start; gap:0.8rem;">
+          <input type="checkbox" name="consent" id="consent" required style="margin-top:0.3rem;">
+          <label for="consent" style="font-size:0.85rem; color:var(--muted); line-height:1.5;">
+            I consent to ZibiTech storing my resume and data for up to 6 months for recruitment purposes. *
+          </label>
+        </div>
         
-        <button type="submit" class="form-submit">Submit Application</button>
+        <button type="submit" class="form-submit" style="margin-top:1rem;">Submit Application</button>
       </form>
     </div>
   </div>
@@ -348,21 +356,20 @@ job_portal_template = """<!DOCTYPE html>
     e.preventDefault();
     
     const formData = new FormData(this);
-    const data = {
-      name: formData.get('name'),
-      email: formData.get('email'),
-      phone: formData.get('phone'),
-      cover_letter: formData.get('cover_letter'),
-      resume_text: formData.get('resume_text')
-    };
+    
+    // Check if either text or file is provided
+    const resumeText = formData.get('resume_text');
+    const resumeFile = formData.get('resume');
+    
+    if (!resumeText && (!resumeFile || resumeFile.size === 0)) {
+        alert('Please either paste your resume text or upload a PDF file.');
+        return;
+    }
     
     try {
       const response = await fetch('/apply/{{ job.id }}', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
+        body: formData // Send as FormData
       });
       
       const result = await response.json();
@@ -481,27 +488,103 @@ async def job_details(request: Request, job_id: int):
     html = Template(job_portal_template).render(jobs=[], job=job)
     return HTMLResponse(content=html)
 
+def normalize_spaced_text(text: str) -> str:
+    """Detects and fixes spaced-out text (e.g. 'P r o d u c t')"""
+    if not text: return ""
+    sample = text[:500]
+    words = sample.split()
+    if not words: return text
+    single_chars = [w for w in words if len(w) == 1 and w.isalnum()]
+    if len(words) > 10 and len(single_chars) / len(words) > 0.6:
+        text = text.replace('  ', '|||').replace(' ', '').replace('|||', ' ')
+        text = re.sub(r'\n+', '\n', text)
+    return text
+
+def _extract_text_from_pdf(file: UploadFile) -> str:
+    """Extract text from uploaded PDF file using pypdf"""
+    try:
+        pdf_reader = pypdf.PdfReader(file.file)
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text() + "\n"
+        return normalize_spaced_text(text.strip())
+    except Exception as e:
+        print(f"Error extracting PDF text: {e}")
+        return ""
+
 @app.post("/apply/{job_id}")
-async def submit_application(job_id: int, request: Request):
+async def submit_application(
+    job_id: int,
+    name: str = Form(...),
+    email: str = Form(...),
+    phone: Optional[str] = Form(None),
+    cover_letter: Optional[str] = Form(""),
+    resume_text: Optional[str] = Form(None),
+    consent: bool = Form(False),
+    resume: Optional[UploadFile] = File(None)
+):
     """Handle job application submission"""
     try:
-        data = await request.json()
+        # Extract resume text if file is provided
+        if resume and resume.filename.endswith('.pdf'):
+            extracted_text = _extract_text_from_pdf(resume)
+            if extracted_text:
+                resume_text = extracted_text
+            try:
+                resume.file.seek(0)
+            except Exception:
+                pass
         
+        # Normalize text
+        if resume_text:
+            resume_text = normalize_spaced_text(resume_text)
+        
+        if not resume_text:
+            return JSONResponse(content={'success': False, 'error': 'Resume text or PDF file is required'}, status_code=400)
+
         # Add applicant to database
         applicant_id = db.add_applicant(
-            name=data['name'],
-            email=data['email'],
-            phone=data.get('phone'),
-            position=data.get('position', '')
+            name=name,
+            email=email,
+            phone=phone,
+            position="", # Will be set by application record
+            consent=consent
         )
+
+        # Persist the uploaded resume as a "Document" so HR can view it later
+        if resume and getattr(resume, "filename", None):
+            uploads_dir = os.path.join(os.path.dirname(__file__), "uploaded_documents")
+            os.makedirs(uploads_dir, exist_ok=True)
+            safe_name = os.path.basename(resume.filename)
+            unique_name = f"{uuid.uuid4().hex}_{safe_name}"
+            out_path = os.path.join(uploads_dir, unique_name)
+            try:
+                # ensure we're at file start
+                try:
+                    resume.file.seek(0)
+                except Exception:
+                    pass
+                with open(out_path, "wb") as f:
+                    shutil.copyfileobj(resume.file, f)
+                file_size = os.path.getsize(out_path) if os.path.exists(out_path) else 0
+                db.add_document(
+                    applicant_id=applicant_id,
+                    document_type="resume",
+                    filename=safe_name,
+                    file_path=out_path,
+                    file_size=file_size,
+                )
+            except Exception as e:
+                # Non-fatal: application can proceed even if file persistence fails
+                print(f"[WARN] Failed to store resume document: {e}")
         
         # Score the resume
-        result = scorer.score_resume(data['resume_text'])
+        result = scorer.score_resume(resume_text)
         
         # Save the score
         db.save_resume_score(
             applicant_id=applicant_id,
-            resume_text=data['resume_text'],
+            resume_text=resume_text,
             score=result['score'],
             features=result['features'],
             recommendations=result['recommendations']
@@ -511,7 +594,7 @@ async def submit_application(job_id: int, request: Request):
         db.add_job_application(
             job_id=job_id,
             applicant_id=applicant_id,
-            cover_letter=data.get('cover_letter', '')
+            cover_letter=cover_letter
         )
         
         return JSONResponse(content={
@@ -520,6 +603,8 @@ async def submit_application(job_id: int, request: Request):
         })
         
     except Exception as e:
+        import traceback
+        print(traceback.format_exc())
         return JSONResponse(content={
             'success': False,
             'error': str(e)

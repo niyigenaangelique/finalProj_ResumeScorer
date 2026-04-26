@@ -24,11 +24,12 @@ async def interview_scheduling(request: Request):
     # Build <option> list for applications
     app_options = '<option value="">Select applicant…</option>'
     for a in applications:
-        app_options += (
-            f'<option value="{a.get("id",0)}">'
-            f'{a.get("applicant_name","N/A")} — {a.get("job_title","N/A")}'
-            f'</option>'
-        )
+        if (a.get("status") or "").lower() == "assessment_passed":
+            app_options += (
+                f'<option value="{a.get("id",0)}">'
+                f'{a.get("applicant_name","N/A")} — {a.get("job_title","N/A")}'
+                f'</option>'
+            )
 
     # Build interview cards (server-rendered for initial load)
     interview_cards = _build_interview_cards(interviews)
@@ -617,6 +618,26 @@ function editInterview(id) {{
     .catch(() => showToast('Error', 'Could not load interview.', 'error'));
 }}
 
+async function setInterviewResult(id, result) {{
+  if (!confirm(`Are you sure you want to mark this interview as ${{result.toUpperCase()}}?`)) return;
+  try {{
+    const r = await fetch('/api/interview-result', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify({{ interview_id: id, result: result }})
+    }});
+    const d = await r.json();
+    if (d.success) {{
+      showToast('Success', d.message);
+      setTimeout(() => location.reload(), 1000);
+    }} else {{
+      showToast('Error', d.error, 'error');
+    }}
+  }} catch (e) {{
+    showToast('Error', e.message, 'error');
+  }}
+}}
+
 // ── CANCEL ────────────────────────────────────────────
 function cancelInterview(id) {{
   if (!confirm('Cancel this interview? This will notify the candidate.')) return;
@@ -827,7 +848,11 @@ def _build_interview_cards(interviews: list) -> str:
     <button class="btn btn-outline btn-sm" onclick="editInterview({ivid})" {"disabled" if status=="cancelled" else ""}>
       <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit
     </button>
-    {"" if status=="cancelled" else f'<button class="btn btn-danger btn-sm" onclick="cancelInterview({ivid})"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></button>'}
+    {f'''
+    <button class="btn btn-primary btn-sm" onclick="setInterviewResult({ivid}, 'pass')" style="background:#27AE60;border-color:#27AE60;">Pass</button>
+    <button class="btn btn-danger btn-sm" onclick="setInterviewResult({ivid}, 'fail')">Fail</button>
+    ''' if status == "scheduled" or status == "interview_scheduled" else ""}
+    {"" if status=="cancelled" else f'<button class="btn btn-outline btn-sm" onclick="cancelInterview({ivid})"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></button>'}
   </div>
 </div>"""
 
@@ -958,6 +983,44 @@ async def update_interview(request: Request):
             return JSONResponse(content={"success": True, "message": "Interview updated successfully"})
         else:
             return JSONResponse(content={"success": False, "error": "Failed to update interview"}, status_code=500)
+
+    except Exception as e:
+        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/api/interview-result")
+async def set_interview_result(request: Request):
+    """Mark interview as pass or fail"""
+    current_user = get_current_user(request)
+    if not current_user:
+        return JSONResponse(content={"success": False, "error": "Unauthorized"}, status_code=401)
+
+    try:
+        data = await request.json()
+        interview_id = data.get("interview_id")
+        result = data.get("result") # 'pass' or 'fail'
+
+        if not interview_id or not result:
+            return JSONResponse(content={"success": False, "error": "Missing ID or result"}, status_code=400)
+
+        interviews = db.get_interviews()
+        interview = next((iv for iv in interviews if iv.get('id') == interview_id), None)
+        if not interview:
+            return JSONResponse(content={"success": False, "error": "Interview not found"}, status_code=404)
+
+        application_id = interview.get('application_id')
+        new_status = 'interview_passed' if result == 'pass' else 'interview_failed'
+        
+        # Update application status
+        db.update_application_status(application_id, new_status)
+        
+        # Update interview status to 'completed'
+        db.update_interview_status(interview_id, 'completed')
+
+        return JSONResponse(content={
+            "success": True, 
+            "message": f"Interview marked as {result.upper()}. Candidate is now {new_status.replace('_', ' ')}."
+        })
 
     except Exception as e:
         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
