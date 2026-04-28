@@ -251,6 +251,27 @@ async def offer_management(request: Request):
   </div>
 </div>
 
+<!-- ══ UNIVERSAL CONFIRMATION MODAL ══ -->
+<div id="confirmModal" style="display:none;position:fixed;inset:0;background:rgba(13,14,26,0.55);
+     z-index:10000;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
+  <div style="background:var(--white);border-radius:16px;padding:32px;max-width:480px;width:90%;
+              box-shadow:0 20px 60px rgba(0,0,0,0.2);position:relative;text-align:center;">
+    <div id="confirmIcon" style="width:64px;height:64px;border-radius:50%;
+                display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+    </div>
+    <h3 id="confirmTitle" style="font-size:22px;font-weight:700;color:var(--ink);margin-bottom:12px;">Confirm Action</h3>
+    <p id="confirmMessage" style="color:var(--ink2);line-height:1.6;margin-bottom:24px;">
+      Are you sure you want to proceed with this action?
+    </p>
+    <div style="display:flex;gap:12px;justify-content:center;">
+      <button class="btn btn-outline" onclick="closeConfirmModal()" style="min-width:100px;">Cancel</button>
+      <button class="btn btn-primary" id="confirmBtn" onclick="confirmAction()" style="min-width:100px;">
+        <span id="confirmBtnText">Confirm</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ OFFER HISTORY ══ -->
 <div class="card" style="margin-top:0;animation:fadeUp 0.3s ease 0.28s both;">
   <div class="card-hd">
@@ -572,10 +593,92 @@ function viewOffer(id) {{
 }}
 function closeViewOffer() {{ document.getElementById('viewOfferModal').style.display='none'; }}
 
+// ── UNIVERSAL CONFIRMATION SYSTEM ───────────────────────────────
+let currentConfirmCallback = null;
+
+function showConfirmModal(options) {{
+  const {{
+    title = 'Confirm Action',
+    message = 'Are you sure you want to proceed with this action?',
+    icon = 'warning',
+    confirmText = 'Confirm',
+    confirmType = 'primary',
+    onConfirm
+  }} = options;
+  
+  // Set modal content
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMessage').textContent = message;
+  document.getElementById('confirmBtnText').textContent = confirmText;
+  
+  // Set icon
+  const iconEl = document.getElementById('confirmIcon');
+  const btnEl = document.getElementById('confirmBtn');
+  
+  if (icon === 'danger') {{
+    iconEl.style.background = 'linear-gradient(135deg,#f56565,#e53e3e)';
+    iconEl.innerHTML = `<svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+      <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14"/>
+    </svg>`;
+    btnEl.className = 'btn btn-danger';
+  }} else if (icon === 'warning') {{
+    iconEl.style.background = 'linear-gradient(135deg,#f6ad55,#ed8936)';
+    iconEl.innerHTML = `<svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+      <line x1="12" y1="9" x2="12" y2="13"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>`;
+    btnEl.className = 'btn btn-warning';
+  }} else {{
+    iconEl.style.background = 'linear-gradient(135deg,#4299e1,#3182ce)';
+    iconEl.innerHTML = `<svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+      <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
+    </svg>`;
+    btnEl.className = 'btn btn-' + confirmType;
+  }}
+  
+  // Store callback
+  currentConfirmCallback = onConfirm;
+  
+  // Show modal
+  document.getElementById('confirmModal').style.display = 'flex';
+}}
+
+function confirmAction() {{
+  const btn = document.getElementById('confirmBtn');
+  const btnText = document.getElementById('confirmBtnText');
+  
+  btn.disabled = true;
+  btnText.textContent = 'Processing...';
+  
+  if (currentConfirmCallback) {{
+    currentConfirmCallback();
+  }}
+}}
+
+function closeConfirmModal() {{
+  document.getElementById('confirmModal').style.display = 'none';
+  currentConfirmCallback = null;
+  
+  // Reset button state
+  const btn = document.getElementById('confirmBtn');
+  const btnText = document.getElementById('confirmBtnText');
+  btn.disabled = false;
+  btnText.textContent = 'Confirm';
+}}
+
 // ── SEND / WITHDRAW / DELETE ───────────────────────────
 function updateOfferStatus(id, manualStatus = null) {{
   const status = manualStatus || document.getElementById('offerStatusSelect').value;
-  if (!confirm(`Update offer status to "${{status}}"?` + (status === 'hired' ? '\\n\\nIMPORTANT: This will finalize the recruitment and push the new employee data to the TalentFlow HRMS.' : ''))) return;
+  const message = `Update offer status to "${{status}}"?` + (status === 'hired' ? '\\n\\nIMPORTANT: This will finalize the recruitment and push the new employee data to the TalentFlow HRMS.' : '');
+  
+  showConfirmModal({{
+    title: 'Update Offer Status?',
+    message: message,
+    icon: status === 'hired' ? 'warning' : 'primary',
+    confirmText: 'Update Status',
+    confirmType: status === 'hired' ? 'warning' : 'primary',
+    onConfirm: () => {{
   
   fetch('/api/update-offer-status', {{
     method: 'POST',
@@ -587,37 +690,106 @@ function updateOfferStatus(id, manualStatus = null) {{
     if (d.success) {{
       showToast('Status Updated', `Offer is now ${{status}}.`, 'success');
       closeViewOffer();
+      closeConfirmModal();
       setTimeout(() => location.reload(), 1000);
     }} else {{
       showToast('Update Failed', d.error || 'Failed to update.', 'error');
+      closeConfirmModal();
     }}
   }})
-  .catch(err => showToast('Network Error', err.message, 'error'));
+  .catch(err => {{
+    showToast('Network Error', err.message, 'error');
+    closeConfirmModal();
+  }});
+    }}
+  }});
 }}
 
 function sendOffer(id) {{
-  if (!confirm('Send this offer to the candidate now?')) return;
-  fetch('/api/send-offer/'+id, {{method:'POST'}})
-    .then(r=>r.json())
-    .then(d=>{{ if(d.success){{ showToast('Offer Sent','Email dispatched to candidate.','success'); setTimeout(()=>location.reload(),1200); }}
-      else showToast('Error', d.error||'Failed.','error'); }})
-    .catch(()=>showToast('Error','Network error.','error'));
+  showConfirmModal({{
+    title: 'Send Offer?',
+    message: 'Send this offer to the candidate now?',
+    icon: 'primary',
+    confirmText: 'Send Offer',
+    confirmType: 'primary',
+    onConfirm: () => {{
+      fetch('/api/send-offer/'+id, {{method:'POST'}})
+        .then(r=>r.json())
+        .then(d=>{{ 
+          if(d.success){{ 
+            showToast('Offer Sent','Email dispatched to candidate.','success'); 
+            closeConfirmModal();
+            setTimeout(()=>location.reload(),1200); 
+          }}
+          else {{ 
+            showToast('Error', d.error||'Failed.','error');
+            closeConfirmModal();
+          }} 
+        }})
+        .catch(()=>{{
+          showToast('Error','Network error.','error');
+          closeConfirmModal();
+        }});
+    }}
+  }});
 }}
+
 function withdrawOffer(id) {{
-  if (!confirm('Withdraw this offer?')) return;
-  fetch('/api/withdraw-offer/'+id, {{method:'POST'}})
-    .then(r=>r.json())
-    .then(d=>{{ if(d.success){{ showToast('Withdrawn','Offer has been withdrawn.','warning'); setTimeout(()=>location.reload(),1200); }}
-      else showToast('Error', d.error||'Failed.','error'); }})
-    .catch(()=>showToast('Error','Network error.','error'));
+  showConfirmModal({{
+    title: 'Withdraw Offer?',
+    message: 'Withdraw this offer?',
+    icon: 'warning',
+    confirmText: 'Withdraw',
+    confirmType: 'warning',
+    onConfirm: () => {{
+      fetch('/api/withdraw-offer/'+id, {{method:'POST'}})
+        .then(r=>r.json())
+        .then(d=>{{ 
+          if(d.success){{ 
+            showToast('Withdrawn','Offer has been withdrawn.','warning'); 
+            closeConfirmModal();
+            setTimeout(()=>location.reload(),1200); 
+          }}
+          else {{ 
+            showToast('Error', d.error||'Failed.','error');
+            closeConfirmModal();
+          }} 
+        }})
+        .catch(()=>{{
+          showToast('Error','Network error.','error');
+          closeConfirmModal();
+        }});
+    }}
+  }});
 }}
+
 function deleteOffer(id) {{
-  if (!confirm('Delete this offer permanently?')) return;
-  fetch('/api/delete-offer/'+id, {{method:'DELETE'}})
-    .then(r=>r.json())
-    .then(d=>{{ if(d.success){{ showToast('Deleted','Offer removed.','warning'); setTimeout(()=>location.reload(),1200); }}
-      else showToast('Error', d.error||'Failed.','error'); }})
-    .catch(()=>showToast('Error','Network error.','error'));
+  showConfirmModal({{
+    title: 'Delete Offer?',
+    message: 'Delete this offer permanently?',
+    icon: 'danger',
+    confirmText: 'Delete',
+    confirmType: 'danger',
+    onConfirm: () => {{
+      fetch('/api/delete-offer/'+id, {{method:'DELETE'}})
+        .then(r=>r.json())
+        .then(d=>{{ 
+          if(d.success){{ 
+            showToast('Deleted','Offer removed.','warning'); 
+            closeConfirmModal();
+            setTimeout(()=>location.reload(),1200); 
+          }}
+          else {{ 
+            showToast('Error', d.error||'Failed.','error');
+            closeConfirmModal();
+          }} 
+        }})
+        .catch(()=>{{
+          showToast('Error','Network error.','error');
+          closeConfirmModal();
+        }});
+    }}
+  }});
 }}
 
 // ── HISTORY ──────────────────────────────────────────
@@ -675,7 +847,7 @@ function escHtml(s) {{
 }}
 
 // Backdrop close
-['previewModal','viewOfferModal'].forEach(id=>{{
+['previewModal','viewOfferModal','confirmModal'].forEach(id=>{{
   document.getElementById(id).addEventListener('click', function(e){{ if(e.target===this) this.style.display='none'; }});
 }});
 

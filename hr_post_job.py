@@ -101,19 +101,12 @@ async def post_job_page(request: Request):
       <div class="card-bd">
         <div class="form-grid">
           <div class="form-group full"><label class="form-label">Job Title *</label>
-            <input class="form-ctrl" type="text" id="job_title" placeholder="e.g. Senior Software Engineer" required></div>
+            <select class="form-ctrl" id="job_title" required>
+              <option value="">Select Position</option>
+            </select></div>
           <div class="form-group"><label class="form-label">Department *</label>
             <select class="form-ctrl" id="department" required>
               <option value="">Select Department</option>
-              <option value="Engineering">Engineering</option>
-              <option value="Marketing">Marketing</option>
-              <option value="Sales">Sales</option>
-              <option value="HR">Human Resources</option>
-              <option value="Finance">Finance</option>
-              <option value="Operations">Operations</option>
-              <option value="Customer Service">Customer Service</option>
-              <option value="Product">Product</option>
-              <option value="Design">Design</option>
             </select></div>
           <div class="form-group"><label class="form-label">Employment Type *</label>
             <select class="form-ctrl" id="employment_type" required>
@@ -137,11 +130,7 @@ async def post_job_page(request: Request):
             <input class="form-ctrl" type="text" id="location" placeholder="City or Remote" required></div>
           <div class="form-group"><label class="form-label">Work Mode *</label>
             <select class="form-ctrl" id="work_mode" required>
-              <option value="">Select Mode</option>
-              <option value="onsite">On-site</option>
-              <option value="remote">Remote</option>
-              <option value="hybrid">Hybrid</option>
-              <option value="flexible">Flexible</option>
+              <option value="">Select Shift</option>
             </select></div>
           <div class="form-group"><label class="form-label">Min Salary</label>
             <input class="form-ctrl" type="text" id="salary_min" placeholder="e.g. $80,000"></div>
@@ -468,7 +457,89 @@ function escHtml(s) {{
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\'/g,'&#39;');
 }}
 
-window.addEventListener('load', loadDraft);
+// ── HRMS INTEGRATION ───────────────────────────────────────
+let HRMS_META = null;
+
+async function loadHrmsMeta() {{
+  if (HRMS_META) return HRMS_META;
+  try {{
+    const r = await fetch('/api/hrms-metadata');
+    const d = await r.json();
+    if(d && d.success) HRMS_META = d;
+  }} catch(e) {{}}
+  HRMS_META = HRMS_META || {{success:false, departments:[], positions:[], shifts:[]}};
+  return HRMS_META;
+}}
+
+function _opt(label, value) {{
+  const o = document.createElement('option');
+  o.value = value;
+  o.textContent = label;
+  return o;
+}}
+
+function _fillSelect(selId, items, placeholder) {{
+  const sel = document.getElementById(selId);
+  if(!sel) return;
+  sel.innerHTML = '';
+  sel.appendChild(_opt(placeholder || 'Select…', ''));
+  
+  // Position code to title mapping
+  const positionTitles = {{
+    'POS-001': 'Software Engineer',
+    'POS-002': 'HR Manager', 
+    'POS-003': 'Accountant',
+    'POS-004': 'Marketing Specialist',
+    'POS-005': 'Project Manager',
+    'POS-006': 'Sales Representative',
+    'POS-007': 'Customer Service Representative',
+    'POS-008': 'Data Analyst',
+    'POS-009': 'Office Manager',
+    'POS-010': 'Quality Assurance Engineer',
+    'POS-011': 'Network Manager',
+    'POS-0012': 'AI Integration Specialist'
+  }};
+  
+  // Department code to title mapping
+  const departmentTitles = {{
+    'HR': 'Human Resources',
+    'IT': 'Information Technology', 
+    'FIN': 'Finance',
+    'DEPT-001': 'Networking',
+    'DEP-0002': 'Automation Lab'
+  }};
+  
+  (items || []).forEach(it => {{
+    let name, val;
+    if (typeof it === 'string') {{
+      val = it;
+      if (selId === 'jobTitle' || selId === 'job_title') {{
+        name = positionTitles[it] || it;
+      }} else if (selId === 'department' || selId === 'jobDepartment') {{
+        name = departmentTitles[it] || it;
+      }} else {{
+        name = it;
+      }}
+    }} else {{
+      name = it.name || it.title || it.label || it.value || '';
+      val = it.name || it.title || it.label || it.value || '';
+    }}
+    if(name) sel.appendChild(_opt(name, val));
+  }});
+}}
+
+// Load HRMS data when page loads
+async function loadHrmsData() {{
+  const meta = await loadHrmsMeta();
+  _fillSelect('department', meta.departments || [], 'Select Department');
+  _fillSelect('job_title', meta.positions || [], 'Select Position');
+  _fillSelect('work_mode', meta.shifts || [], 'Select Shift');
+}}
+
+window.addEventListener('load', () => {{
+  loadDraft();
+  loadHrmsData();
+}});
 </script>
 """
     return HTMLResponse(content=get_base_html("Post Job", "post-job", current_user) + page + get_end_html())
@@ -508,8 +579,7 @@ async def post_job(request: Request):
             hiring_manager=data.get('hiring_manager'),
             team_size=data.get('team_size'),
             featured_job=data.get('featured_job', False),
-            urgent_hiring=data.get('urgent_hiring', False),
-            posted_by=current_user)
+            urgent_hiring=data.get('urgent_hiring', False))
         send_email(current_user,
             f"New Job Posted: {data['job_title']}",
             f"<h2>New Job Posting</h2><p><strong>{data['job_title']}</strong> — {data['department']}<br>Location: {data['location']}<br>Posted by: {current_user}</p>",

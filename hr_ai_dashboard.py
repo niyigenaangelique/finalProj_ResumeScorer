@@ -105,7 +105,8 @@ async def ai_screening_dashboard(request: Request):
             <td>
                 <div class="action-grp">
                     <button class="btn btn-sm btn-outline" onclick="viewMatchDetailsByIndex({idx})">View Insights</button>
-                   </div>
+                    <button class="btn btn-sm btn-primary" onclick="hireCandidate({applicant['id']}, '{applicant['name']}', '{applicant['email']}', {job['id']})">Hired</button>
+                </div>
             </td>
         </tr>
         """

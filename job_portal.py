@@ -17,6 +17,52 @@ app = FastAPI(title="Job Application Portal", description="Modern Job Portal for
 db = ResumeDatabase()
 scorer = SimpleResumeScorer()
 
+# Code-to-title mappings for HRMS integration
+def get_department_title(dept_code):
+    """Convert department code to full title"""
+    department_titles = {
+        'HR': 'Human Resources',
+        'IT': 'Information Technology', 
+        'FIN': 'Finance',
+        'DEPT-001': 'Networking',
+        'DEP-0002': 'Automation Lab'
+    }
+    return department_titles.get(dept_code, dept_code)
+
+def get_position_title(position_code):
+    """Convert position code to full title"""
+    position_titles = {
+        'POS-001': 'Software Engineer',
+        'POS-002': 'HR Manager', 
+        'POS-003': 'Accountant',
+        'POS-004': 'Marketing Specialist',
+        'POS-005': 'Project Manager',
+        'POS-006': 'Sales Representative',
+        'POS-007': 'Customer Service Representative',
+        'POS-008': 'Data Analyst',
+        'POS-009': 'Office Manager',
+        'POS-010': 'Quality Assurance Engineer',
+        'POS-011': 'Network Manager',
+        'POS-0012': 'AI Integration Specialist'
+    }
+    return position_titles.get(position_code, position_code)
+
+def enhance_job_data(jobs):
+    """Enhance job data with proper titles for display"""
+    for job in jobs:
+        dept_code = job.get('department', '')
+        title_code = job.get('title', '')
+        
+        # Get proper titles
+        dept_title = get_department_title(dept_code)
+        title_display = get_position_title(title_code)
+        
+        # Add enhanced fields
+        job['department_title'] = dept_title
+        job['title_display'] = title_display
+        
+    return jobs
+
 # Create templates directory
 os.makedirs("templates", exist_ok=True)
 
@@ -230,8 +276,8 @@ job_portal_template = """<!DOCTYPE html>
     <div class="job-card reveal reveal-d{{ loop.index0 % 4 + 1 }}">
       <div class="job-header">
         <div>
-          <h3 class="job-title">{{ job.title }}</h3>
-          <div class="job-company">{{ job.department }}</div>
+          <h3 class="job-title">{{ job.title_display }}</h3>
+          <div class="job-company">{{ job.department_title }}</div>
         </div>
       </div>
       
@@ -246,7 +292,7 @@ job_portal_template = """<!DOCTYPE html>
       </div>
       
       <div class="job-tags">
-        <span class="job-tag">{{ job.department }}</span>
+        <span class="job-tag">{{ job.department_title }}</span>
         {% if job.job_type %}
         <span class="job-tag">{{ job.job_type }}</span>
         {% endif %}
@@ -268,7 +314,7 @@ job_portal_template = """<!DOCTYPE html>
 <section class="application-section">
   <div class="application-container">
     <div class="form-card reveal">
-      <h2 class="form-title">Apply for {{ job.title }}</h2>
+      <h2 class="form-title">Apply for {{ job.title_display }}</h2>
       
       <form action="/apply/{{ job.id }}" method="post" enctype="multipart/form-data">
         <div class="form-group">
@@ -469,10 +515,11 @@ my_applications_template = """<!DOCTYPE html>
 #  ROUTES
 # ─────────────────────────────────────────────────────────────────────────────
 
-@app.get("/", response_class=HTMLResponse)
-async def job_listings(request: Request):
+@app.get("/jobs", response_class=HTMLResponse)
+async def jobs_page():
     """Main job listings page"""
     jobs = db.get_all_jobs()
+    jobs = enhance_job_data(jobs)
     from jinja2 import Template
     html = Template(job_portal_template).render(jobs=jobs, job=None)
     return HTMLResponse(content=html)
@@ -483,6 +530,9 @@ async def job_details(request: Request, job_id: int):
     job = db.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Enhance single job with proper titles
+    job = enhance_job_data([job])[0] if isinstance(job, dict) else job
     
     from jinja2 import Template
     html = Template(job_portal_template).render(jobs=[], job=job)

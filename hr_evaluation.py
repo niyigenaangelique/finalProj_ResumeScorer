@@ -804,7 +804,30 @@ async function editEvaluation(appId) {{
 }}
 
 async function deleteEvaluation(evalId) {{
-  if (!confirm('Delete this evaluation? This cannot be undone.')) return;
+  showConfirmModal({
+    title: 'Delete Evaluation?',
+    message: 'Delete this evaluation? This cannot be undone.',
+    icon: 'danger',
+    confirmText: 'Delete',
+    confirmType: 'danger',
+    onConfirm: async () => {
+      try {
+        const r = await fetch('/api/delete-evaluation/'+evalId, {method:'DELETE'});
+        if (r.ok) {
+          showToast('Deleted','Evaluation deleted.','warning');
+          closeConfirmModal();
+          loadEvaluations();
+        } else {
+          showToast('Error', d.error||'Failed.','error');
+          closeConfirmModal();
+        }
+      } catch (err) {
+        showToast('Error','Network error.','error');
+        closeConfirmModal();
+      }
+    }
+  });
+}
   try {{
     const r = await fetch('/api/delete-evaluation/'+evalId, {{method:'DELETE'}});
     if (r.ok) {{
@@ -818,10 +841,83 @@ async function deleteEvaluation(evalId) {{
   }}
 }}
 
+// ── UNIVERSAL CONFIRMATION SYSTEM ─────────────────────────
+let currentConfirmCallback = null;
+
+function showConfirmModal(options) {{
+  const {{
+    title = 'Confirm Action',
+    message = 'Are you sure you want to proceed with this action?',
+    icon = 'warning',
+    confirmText = 'Confirm',
+    confirmType = 'primary',
+    onConfirm
+  }} = options;
+  
+  // Set modal content
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMessage').textContent = message;
+  document.getElementById('confirmBtnText').textContent = confirmText;
+  
+  // Set icon
+  const iconEl = document.getElementById('confirmIcon');
+  const btnEl = document.getElementById('confirmBtn');
+  
+  if (icon === 'danger') {{
+    iconEl.style.background = 'linear-gradient(135deg,#f56565,#e53e3e)';
+    iconEl.innerHTML = `<svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+      <path d="M3 6h18M19 6v12a2 2 0 0 1-2 2v2H7a2 2 0 0 1-2 2v2m3 0h6l-3 3h6m0 0h6"/>
+    </svg>`;
+    btnEl.className = 'btn btn-danger';
+  }} else if (icon === 'warning') {{
+    iconEl.style.background = 'linear-gradient(135deg,#f6ad55,#ed8936)';
+    iconEl.innerHTML = `<svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 1-2 2v2M1.82 18h16.36M19 18l-1.27 1.36A4 4 0 0 1-2 2v2m3 0h6l-3 3h6m0 0h6"/>
+      <line x1="12" y1="9" x2="12" y2="13"/>
+    </svg>`;
+    btnEl.className = 'btn btn-warning';
+  }} else {{
+    iconEl.style.background = 'linear-gradient(135deg,#4299e1,#3182ce)';
+    iconEl.innerHTML = `<svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+      <path d="M13 16h-1v-4a2 2 0 0 1-2 2v2H7a2 2 0 0 1-2 2v2m3 0h6l-3 3h6m0 0h6"/>
+    </svg>`;
+    btnEl.className = 'btn btn-' + confirmType;
+  }}
+  
+  // Store callback
+  currentConfirmCallback = onConfirm;
+  
+  // Show modal
+  document.getElementById('confirmModal').style.display = 'flex';
+}}
+
+function confirmAction() {{
+  const btn = document.getElementById('confirmBtn');
+  const btnText = document.getElementById('confirmBtnText');
+  
+  btn.disabled = true;
+  btnText.textContent = 'Processing...';
+  
+  if (currentConfirmCallback) {{
+    currentConfirmCallback();
+  }}
+}}
+
+function closeConfirmModal() {{
+  document.getElementById('confirmModal').style.display = 'none';
+  currentConfirmCallback = null;
+  
+  // Reset button state
+  const btn = document.getElementById('confirmBtn');
+  const btnText = document.getElementById('confirmBtnText');
+  btn.disabled = false;
+  btnText.textContent = 'Confirm';
+}}
+
 function escH(s) {{
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-                  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+                  .replace(/"/g,'&quot;').replace(/\'/g,'&#39;');
 }}
 </script>
 """

@@ -176,6 +176,27 @@ async def communications(request: Request):
   </div>
 </div>
 
+<!-- ══ UNIVERSAL CONFIRMATION MODAL ══ -->
+<div id="confirmModal" style="display:none;position:fixed;inset:0;background:rgba(13,14,26,0.55);
+     z-index:10000;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
+  <div style="background:var(--white);border-radius:16px;padding:32px;max-width:480px;width:90%;
+              box-shadow:0 20px 60px rgba(0,0,0,0.2);position:relative;text-align:center;">
+    <div id="confirmIcon" style="width:64px;height:64px;border-radius:50%;
+                display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+    </div>
+    <h3 id="confirmTitle" style="font-size:22px;font-weight:700;color:var(--ink);margin-bottom:12px;">Confirm Action</h3>
+    <p id="confirmMessage" style="color:var(--ink2);line-height:1.6;margin-bottom:24px;">
+      Are you sure you want to proceed with this action?
+    </p>
+    <div style="display:flex;gap:12px;justify-content:center;">
+      <button class="btn btn-outline" onclick="closeConfirmModal()" style="min-width:100px;">Cancel</button>
+      <button class="btn btn-primary" id="confirmBtn" onclick="confirmAction()" style="min-width:100px;">
+        <span id="confirmBtnText">Confirm</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ HISTORY PANEL ══ -->
 <div class="card" style="margin-top:8px;animation:fadeUp 0.35s ease 0.2s both;">
   <div class="card-hd">
@@ -675,9 +696,8 @@ function loadCommunicationHistory() {{
     }});
 }}
 
-// ── DELETE ─────────────────────────────────────────────
+// ── DELETE ─────────────────────────────────────
 function deleteCommunication(id) {{
-  if (!confirm('Delete this communication record? This cannot be undone.')) return;
   fetch('/api/delete-communication/' + id, {{ method: 'DELETE' }})
     .then(r => r.json())
     .then(d => {{

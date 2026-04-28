@@ -1188,6 +1188,11 @@ async def login_page():
     return HTMLResponse(content=Template(LOGIN_HTML).render(error=None))
 
 
+@app.get("/login", response_class=HTMLResponse)
+async def login_page_get():
+    return HTMLResponse(content=Template(LOGIN_HTML).render(error=None))
+
+
 @app.post("/login")
 async def login(request: Request):
     form  = await request.form()

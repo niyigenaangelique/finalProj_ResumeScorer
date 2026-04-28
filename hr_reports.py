@@ -9,8 +9,13 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from io import BytesIO
+import matplotlib
+matplotlib.use('Agg') # Non-interactive backend
+import matplotlib.pyplot as plt
+import seaborn as sns
+import base64
 
 db = ResumeDatabase()
 
@@ -216,6 +221,27 @@ async def reports_page(request: Request):
 <!-- ══ REPORT OUTPUT (injected here) ══ -->
 <div id="reportOutput" style="margin-top:20px;"></div>
 
+<!-- ══ UNIVERSAL CONFIRMATION MODAL ══ -->
+<div id="confirmModal" style="display:none;position:fixed;inset:0;background:rgba(13,14,26,0.55);
+     z-index:10000;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
+  <div style="background:var(--white);border-radius:16px;padding:32px;max-width:480px;width:90%;
+              box-shadow:0 20px 60px rgba(0,0,0,0.2);position:relative;text-align:center;">
+    <div id="confirmIcon" style="width:64px;height:64px;border-radius:50%;
+                display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+    </div>
+    <h3 id="confirmTitle" style="font-size:22px;font-weight:700;color:var(--ink);margin-bottom:12px;">Confirm Action</h3>
+    <p id="confirmMessage" style="color:var(--ink2);line-height:1.6;margin-bottom:24px;">
+      Are you sure you want to proceed with this action?
+    </p>
+    <div style="display:flex;gap:12px;justify-content:center;">
+      <button class="btn btn-outline" onclick="closeConfirmModal()" style="min-width:100px;">Cancel</button>
+      <button class="btn btn-primary" id="confirmBtn" onclick="confirmAction()" style="min-width:100px;">
+        <span id="confirmBtnText">Confirm</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ PREVIEW MODAL ══ -->
 <div id="previewModal" style="display:none;position:fixed;inset:0;background:rgba(13,14,26,0.55);
      z-index:10000;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
@@ -377,6 +403,15 @@ function generateReport() {{
     if (d.success) {{
       showToast('Report Ready','Your report has been generated.','success');
       if (data.report_format === 'html') {{
+        let chartsHtml = '';
+        if (d.charts) {{
+          chartsHtml = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">';
+          for (const [name, b64] of Object.entries(d.charts)) {{
+            const style = name === 'volume_trend' ? 'grid-column:1/-1;' : '';
+            chartsHtml += `<div class="card" style="${{style}};margin-bottom:0;"><div class="card-bd" style="padding:10px;"><img src="data:image/png;base64,${{b64}}" style="width:100%;border-radius:6px;display:block;"/></div></div>`;
+          }}
+          chartsHtml += '</div>';
+        }}
         out.innerHTML = `<div class="card">
           <div class="card-hd">
             <span class="card-title" style="display:flex;align-items:center;gap:8px;"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> ${{d.report_type ? d.report_type.replace(/_/g,' ').replace(/\\b\\w/g,c=>c.toUpperCase()) : 'Report'}}</span>
@@ -388,8 +423,10 @@ function generateReport() {{
             </div>
           </div>
           <div class="card-bd">
+            ${{chartsHtml}}
+            <div style="font-family:'Sora',sans-serif;font-size:11px;font-weight:800;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Data Summary</div>
             <div style="background:var(--bg);border-radius:10px;padding:20px;font-family:'Courier New',monospace;
-                        font-size:12.5px;line-height:1.65;color:var(--ink2);max-height:380px;overflow-y:auto;
+                        font-size:12.5px;line-height:1.65;color:var(--ink2);max-height:300px;overflow-y:auto;
                         white-space:pre-wrap;border:1px solid var(--border);">${{escHtml(d.preview||'')}}</div>
           </div>
         </div>`;
@@ -576,6 +613,79 @@ function escHtml(s) {{
           .replace(/"/g,'&quot;').replace(/\'/g,'&#39;');
 }}
 
+// ── UNIVERSAL CONFIRMATION SYSTEM ─────────────────────────
+let currentConfirmCallback = null;
+
+function showConfirmModal(options) {{
+  const {{
+    title = 'Confirm Action',
+    message = 'Are you sure you want to proceed with this action?',
+    icon = 'warning',
+    confirmText = 'Confirm',
+    confirmType = 'primary',
+    onConfirm
+  }} = options;
+  
+  // Set modal content
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMessage').textContent = message;
+  document.getElementById('confirmBtnText').textContent = confirmText;
+  
+  // Set icon
+  const iconEl = document.getElementById('confirmIcon');
+  const btnEl = document.getElementById('confirmBtn');
+  
+  if (icon === 'danger') {{
+    iconEl.style.background = 'linear-gradient(135deg,#f56565,#e53e3e)';
+    iconEl.innerHTML = `<svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+      <path d="M3 6h18M19 6v12a2 2 0 0 1-2 2v2H7a2 2 0 0 1-2 2v2m3 0h6l-3 3h6m0 0h6"/>
+    </svg>`;
+    btnEl.className = 'btn btn-danger';
+  }} else if (icon === 'warning') {{
+    iconEl.style.background = 'linear-gradient(135deg,#f6ad55,#ed8936)';
+    iconEl.innerHTML = `<svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 1-2 2v2M1.82 18h16.36M19 18l-1.27 1.36A4 4 0 0 1-2 2v2m3 0h6l-3 3h6m0 0h6"/>
+      <line x1="12" y1="9" x2="12" y2="13"/>
+    </svg>`;
+    btnEl.className = 'btn btn-warning';
+  }} else {{
+    iconEl.style.background = 'linear-gradient(135deg,#4299e1,#3182ce)';
+    iconEl.innerHTML = `<svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+      <path d="M13 16h-1v-4a2 2 0 0 1-2 2v2H7a2 2 0 0 1-2 2v2m3 0h6l-3 3h6m0 0h6"/>
+    </svg>`;
+    btnEl.className = 'btn btn-' + confirmType;
+  }}
+  
+  // Store callback
+  currentConfirmCallback = onConfirm;
+  
+  // Show modal
+  document.getElementById('confirmModal').style.display = 'flex';
+}}
+
+function confirmAction() {{
+  const btn = document.getElementById('confirmBtn');
+  const btnText = document.getElementById('confirmBtnText');
+  
+  btn.disabled = true;
+  btnText.textContent = 'Processing...';
+  
+  if (currentConfirmCallback) {{
+    currentConfirmCallback();
+  }}
+}}
+
+function closeConfirmModal() {{
+  document.getElementById('confirmModal').style.display = 'none';
+  currentConfirmCallback = null;
+  
+  // Reset button state
+  const btn = document.getElementById('confirmBtn');
+  const btnText = document.getElementById('confirmBtnText');
+  btn.disabled = false;
+  btnText.textContent = 'Confirm';
+}}
+
 // close on backdrop
 ['previewModal','scheduleModal'].forEach(id => {{
   document.getElementById(id).addEventListener('click', function(e) {{
@@ -622,6 +732,7 @@ def _generate_pdf_report(report: dict) -> bytes:
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
     from reportlab.lib import colors
+    from reportlab.lib.units import inch
 
     # ── palette ──────────────────────────────────────────────────────────────
     BLUE      = colors.HexColor("#1a3cff")
@@ -819,46 +930,66 @@ def _generate_pdf_report(report: dict) -> bytes:
         story.append(_kpi_row(kpis))
         story.append(Spacer(1, 20))
 
-        # Score distribution
+        # Visual Charts
+        charts = rdata.get("charts", {})
+        if charts:
+            story.append(Paragraph("Visual Analytics", styles["sec"]))
+            # Group charts: status and score side-by-side
+            row = []
+            for ckey in ['status_dist', 'score_dist']:
+                if ckey in charts:
+                    try:
+                        img_data = BytesIO(base64.b64decode(charts[ckey]))
+                        img = Image(img_data, width=3.4*inch, height=2.4*inch)
+                        row.append(img)
+                    except: pass
+            
+            if row:
+                t = Table([row], colWidths=[3.5*inch]*len(row))
+                t.setStyle(TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
+                story.append(t)
+                story.append(Spacer(1, 15))
+
+            if 'volume_trend' in charts:
+                try:
+                    img_data = BytesIO(base64.b64decode(charts['volume_trend']))
+                    img = Image(img_data, width=w-80, height=2.5*inch)
+                    img.hAlign = 'CENTER'
+                    story.append(img)
+                    story.append(Spacer(1, 15))
+                except: pass
+
+        # Score distribution table
         dist = stats_raw.get("score_distribution", {})
         if dist:
             story.append(Paragraph("Score Distribution", styles["sec"]))
             total_d = sum(dist.values()) or 1
             rows    = [[k, str(v), f"{v / total_d * 100:.1f}%"] for k, v in dist.items()]
-            story.append(_tbl(
-                ["Category", "Count", "Share of Total"], rows,
-                [(w-80)*0.40, (w-80)*0.30, (w-80)*0.30]))
+            story.append(_tbl(["Category", "Count", "Share of Total"], rows, [(w-80)*0.40, (w-80)*0.30, (w-80)*0.30]))
             story.append(Spacer(1, 20))
 
-        # Hiring pipeline
-        pipeline = rdata.get("hiring_pipeline", {})
-        if pipeline:
-            story.append(Paragraph("Hiring Pipeline", styles["sec"]))
-            p_rows = [[k.replace("_", " ").title(), str(v)] for k, v in pipeline.items()]
-            story.append(_tbl(
-                ["Stage", "Count"], p_rows,
-                [(w-80)*0.60, (w-80)*0.40]))
-            story.append(Spacer(1, 20))
-
-        # Full data dump
+        # Full Data Section
         story.append(Paragraph("Full Report Data", styles["sec"]))
-        story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER, spaceAfter=10))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER, spaceAfter=12))
 
         def _render(d, depth=0):
+            if not isinstance(d, dict): return
             pad = "&nbsp;" * (depth * 6)
             for k, v in d.items():
+                if k == "charts": continue
                 label = str(k).replace("_", " ").title()
                 if isinstance(v, dict):
+                    if not v: continue
                     story.append(Paragraph(f"{pad}<b>{label}</b>", styles["body"]))
                     _render(v, depth + 1)
                 elif isinstance(v, list):
                     story.append(Paragraph(f"{pad}<b>{label}:</b> [{len(v)} items]", styles["body"]))
-                    for item in v[:6]:
-                        story.append(Paragraph(f"{pad}&nbsp;&nbsp;&nbsp;\u2022 {str(item)[:120]}", styles["code"]))
-                    if len(v) > 6:
-                        story.append(Paragraph(f"{pad}&nbsp;&nbsp;&nbsp;<i>\u2026{len(v)-6} more</i>", styles["foot"]))
+                    for item in v[:8]:
+                        story.append(Paragraph(f"{pad}&nbsp;&nbsp;&nbsp;\u2022 {str(item)[:150]}", styles["code"]))
+                    if len(v) > 8:
+                        story.append(Paragraph(f"{pad}&nbsp;&nbsp;&nbsp;<i>\u2026 and {len(v)-8} more items</i>", styles["foot"]))
                 else:
-                    story.append(Paragraph(f"{pad}<b>{label}:</b> {str(v)[:200]}", styles["body"]))
+                    story.append(Paragraph(f"{pad}<b>{label}:</b> {str(v)[:250]}", styles["body"]))
 
         if rdata:
             _render(rdata)
@@ -917,34 +1048,158 @@ async def generate_report(request: Request):
         preview = _report_preview_text(data['report_type'], report_data)
         return JSONResponse(content={"success": True, "report_id": report_id, "report_type": data['report_type'],
             "report_url": f"/view-report/{report_id}", "download_url": f"/download-report/{report_id}",
-            "preview": preview,
+            "preview": preview, "charts": report_data.get('charts'),
             "filename": f"hr_report_{data['report_type']}_{datetime.now().strftime('%Y%m%d')}.{'txt' if data.get('report_format')=='text' else 'json' if data.get('report_format')=='json' else 'html'}"})
     except Exception as e:
         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
 
 
 def _generate_report_data(report_type, params):
+    # Fetch all relevant data
     applications = db.get_all_applications()
-    statistics   = db.get_statistics()
-    if report_type == "applications":
-        return {"total_applications": len(applications), "by_status": {}, "statistics": statistics}
-    elif report_type == "interviews":
-        return {"total_interviews": 0, "by_type": {}, "completion_rates": {}}
-    elif report_type == "comprehensive":
-        return {"applications": len(applications), "statistics": statistics, "hiring_pipeline": {}}
-    else:
-        return {"message": f"Report: {report_type}", "generated": datetime.now().isoformat()}
+    all_scores = [a.get('resume_score') for a in applications if a.get('resume_score') is not None]
+    statistics = db.get_statistics()
+    
+    # Filter by department if provided
+    dept_filter = params.get('department_filter')
+    if dept_filter:
+        applications = [a for a in applications if a.get('department') == dept_filter]
+        
+    # Filter by date range if provided
+    start_date = params.get('start_date')
+    end_date = params.get('end_date')
+    if start_date or end_date:
+        # Simple date filtering (assuming application_date is ISO format or similar)
+        filtered = []
+        for a in applications:
+            adate = a.get('application_date', '').split('T')[0]
+            if not adate: continue
+            if start_date and adate < start_date: continue
+            if end_date and adate > end_date: continue
+            filtered.append(a)
+        applications = filtered
+
+    # 1. Pipeline data
+    status_counts = {}
+    for a in applications:
+        s = a.get('status', 'pending').replace('_', ' ').title()
+        status_counts[s] = status_counts.get(s, 0) + 1
+        
+    # 2. Score trend / Distribution
+    score_list = [a.get('resume_score') for a in applications if a.get('resume_score') is not None]
+    
+    # 3. Application volume by date
+    volume_by_date = {}
+    for a in applications:
+        d = a.get('application_date', '').split('T')[0]
+        if d: volume_by_date[d] = volume_by_date.get(d, 0) + 1
+    
+    sorted_dates = sorted(volume_by_date.items())
+    dates = [d for d, c in sorted_dates]
+    counts = [c for d, c in sorted_dates]
+
+    # 4. Department breakdown
+    dept_counts = {}
+    for a in db.get_all_applications(): # use all for comparison if needed, or filtered
+        d = a.get('department') or 'Other'
+        dept_counts[d] = dept_counts.get(d, 0) + 1
+
+    # 5. Hiring Pipeline stages (summary)
+    pipeline = {
+        "Applied":      len(applications),
+        "Interviewing": len([a for a in applications if "interview" in (a.get('status') or '').lower()]),
+        "Offer Phase":  len([a for a in applications if "offer" in (a.get('status') or '').lower()]),
+        "Hired":        len([a for a in applications if "accepted" in (a.get('status') or '').lower() and "offer" in (a.get('status') or '').lower()])
+    }
+
+    data = {
+        "total_applications": len(applications),
+        "status_distribution": status_counts,
+        "hiring_pipeline": pipeline,
+        "score_data": score_list,
+        "volume_trend": {"labels": dates, "values": counts},
+        "department_breakdown": dept_counts,
+        "statistics": statistics,
+        "generated_at": datetime.now().isoformat()
+    }
+
+    # Generate charts if requested
+    if params.get('include_charts'):
+        data["charts"] = _generate_charts(data)
+
+    return data
+
+
+def _generate_charts(data):
+    """Generates charts as base64 encoded PNG strings"""
+    charts = {}
+    sns.set_theme(style="whitegrid", palette="muted")
+    
+    # 1. Status Distribution (Donut Chart)
+    try:
+        dist = data.get('status_distribution', {})
+        if dist:
+            plt.figure(figsize=(6, 4))
+            labels = list(dist.keys())
+            values = list(dist.values())
+            plt.pie(values, labels=labels, autopct='%1.1f%%', startangle=140, pctdistance=0.85, 
+                    colors=sns.color_palette("viridis", len(labels)))
+            # Draw circle for donut
+            centre_circle = plt.Circle((0,0), 0.70, fc='white')
+            fig = plt.gcf()
+            fig.gca().add_artist(centre_circle)
+            plt.title('Application Status Distribution', fontweight='bold')
+            charts['status_dist'] = _plot_to_base64()
+    except Exception as e: print(f"Chart Error (Status): {e}")
+
+    # 2. Score Distribution (Histogram)
+    try:
+        scores = data.get('score_data', [])
+        if scores:
+            plt.figure(figsize=(6, 4))
+            sns.histplot(scores, kde=True, color="#3B6FE8")
+            plt.title('Resume Score Distribution', fontweight='bold')
+            plt.xlabel('Score')
+            plt.ylabel('Count')
+            charts['score_dist'] = _plot_to_base64()
+    except Exception as e: print(f"Chart Error (Scores): {e}")
+
+    # 3. Application Trend (Line Chart)
+    try:
+        trend = data.get('volume_trend', {})
+        if trend and trend.get('labels'):
+            plt.figure(figsize=(10, 4))
+            plt.plot(trend['labels'], trend['values'], marker='o', linestyle='-', color="#6B4FDB", linewidth=2)
+            plt.fill_between(trend['labels'], trend['values'], alpha=0.1, color="#6B4FDB")
+            plt.title('Application Volume Trend', fontweight='bold')
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            charts['volume_trend'] = _plot_to_base64()
+    except Exception as e: print(f"Chart Error (Trend): {e}")
+
+    return charts
+
+def _plot_to_base64():
+    buf = BytesIO()
+    plt.savefig(buf, format='png', dpi=120, bbox_inches='tight')
+    plt.close()
+    buf.seek(0)
+    return base64.b64encode(buf.read()).decode('utf-8')
 
 
 def _report_preview_text(report_type: str, data: dict) -> str:
     lines = [f"REPORT: {report_type.upper().replace('_',' ')}", f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ""]
     for k, v in data.items():
+        if k == "charts": continue # Skip huge base64 strings in preview
+        label = str(k).replace("_", " ").title()
         if isinstance(v, dict):
-            lines.append(f"{k}:")
+            lines.append(f"{label}:")
             for kk, vv in v.items():
-                lines.append(f"  {kk}: {vv}")
+                lines.append(f"  {str(kk).replace('_',' ').title()}: {vv}")
+        elif isinstance(v, list):
+            lines.append(f"{label}: {len(v)} records")
         else:
-            lines.append(f"{k}: {v}")
+            lines.append(f"{label}: {v}")
     return "\n".join(lines)
 
 
@@ -957,16 +1212,60 @@ async def view_report(report_id: str, request: Request):
         report = db.get_report(report_id)
         if not report:
             raise HTTPException(status_code=404, detail="Report not found")
-        html = f"""<!DOCTYPE html><html><head><title>HR Report</title>
-        <style>body{{font-family:'DM Sans',sans-serif;padding:2rem;background:#EEF2F7;}}
-        .box{{background:#fff;border-radius:14px;padding:2rem;max-width:900px;margin:0 auto;
-              box-shadow:0 2px 12px rgba(30,40,90,.07);}}
-        h1{{font-family:'Sora',sans-serif;color:#1A1D2E;}}pre{{background:#f3f2ff;padding:16px;border-radius:9px;overflow-x:auto;font-size:13px;}}
-        </style></head><body><div class="box">
-        <h1 style="display:flex;align-items:center;gap:10px;"><svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> {report['report_type'].replace('_',' ').title()}</h1>
-        <p style="color:#8A8FA8;">Generated: {report.get('generated_date','—')} · By: {report.get('generated_by','—')}</p>
-        <p>Period: {report.get('start_date','All time')} → {report.get('end_date','Present')}</p>
+        charts_html = ""
+        charts_data = report.get('report_data', {}).get('charts', {})
+        if charts_data:
+            charts_html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:20px 0;">'
+            for name, b64 in charts_data.items():
+                style = "grid-column:1/-1;" if name == 'volume_trend' else ""
+                charts_html += f'<div class="card" style="{style}"><div class="card-bd"><img src="data:image/png;base64,{b64}" style="width:100%;border-radius:8px;"/></div></div>'
+            charts_html += '</div>'
+
+        html = f"""<!DOCTYPE html><html><head><title>HR Intelligence Report</title>
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+        :root {{ --bg:#F4F7FB; --white:#fff; --ink:#0F172A; --ink2:#475569; --ink3:#94A3B8; --blue:#2563EB; --indigo:#4F46E5; --border:#E2E8F0; --glass:rgba(255,255,255,0.8); }}
+        body {{ font-family:'Plus Jakarta Sans',sans-serif; padding:3rem; background:var(--bg); color:var(--ink); line-height:1.6; }}
+        .report-box {{ background:var(--white); border-radius:24px; padding:3.5rem; max-width:1100px; margin:0 auto;
+                     box-shadow:0 20px 50px rgba(0,0,0,0.05); border:1px solid var(--border); }}
+        .header {{ border-bottom:2px solid var(--border); padding-bottom:2rem; margin-bottom:2.5rem; display:flex; justify-content:space-between; align-items:flex-start; }}
+        h1 {{ font-size:32px; font-weight:800; color:var(--ink); margin:0; letter-spacing:-0.03em; }}
+        .meta-grid {{ display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:24px; margin-bottom:2.5rem; }}
+        .meta-item {{ display:flex; flex-direction:column; gap:4px; }}
+        .meta-label {{ font-size:11px; font-weight:700; color:var(--ink3); text-transform:uppercase; letter-spacing:0.05em; }}
+        .meta-value {{ font-size:14px; font-weight:600; color:var(--ink2); }}
+        .chart-grid {{ display:grid; grid-template-columns:repeat(2, 1fr); gap:24px; margin-bottom:2.5rem; }}
+        .chart-card {{ background:var(--white); border:1px solid var(--border); border-radius:18px; padding:20px; box-shadow:0 4px 12px rgba(0,0,0,0.02); }}
+        .full-width {{ grid-column:1/-1; }}
+        .section-title {{ font-size:18px; font-weight:800; color:var(--ink); margin:2rem 0 1.2rem; display:flex; align-items:center; gap:10px; }}
+        .section-title::before {{ content:''; width:4px; height:20px; background:var(--blue); border-radius:2px; }}
+        pre {{ background:#F8FAFC; padding:24px; border-radius:16px; border:1px solid var(--border); overflow-x:auto; font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ink2); }}
+        .badge {{ display:inline-block; padding:4px 12px; border-radius:100px; font-size:12px; font-weight:700; background:var(--blue); color:white; }}
+        </style></head><body><div class="report-box">
+        <div class="header">
+            <div>
+                <h1>{report['report_type'].replace('_',' ').title()}</h1>
+                <p style="color:var(--ink3);margin:5px 0 0;">HR Strategic Intelligence Intelligence Report</p>
+            </div>
+            <div class="badge">OFFICIAL DOCUMENT</div>
+        </div>
+        
+        <div class="meta-grid">
+            <div class="meta-item"><span class="meta-label">Generated Date</span><span class="meta-value">{report.get('generated_date','—')}</span></div>
+            <div class="meta-item"><span class="meta-label">Prepared By</span><span class="meta-value">{report.get('generated_by','—')}</span></div>
+            <div class="meta-item"><span class="meta-label">Report ID</span><span class="meta-value" style="font-family:monospace;font-size:11px;">{report['id'][:13]}...</span></div>
+            <div class="meta-item"><span class="meta-label">Period</span><span class="meta-value">{report.get('start_date','All time')} → {report.get('end_date','Present')}</span></div>
+        </div>
+
+        {charts_html}
+        
+        <div class="section-title">Raw Data Analysis</div>
         <pre>{json.dumps(report.get('report_data',{}), indent=2)}</pre>
+        
+        <div style="margin-top:4rem; padding-top:2rem; border-top:1px solid var(--border); text-align:center; color:var(--ink3); font-size:12px;">
+            This report contains sensitive HR data. Confidentiality must be maintained at all times.<br/>
+            &copy; {datetime.now().year} TalentFlow Pro - HR Intelligence Module
+        </div>
         </div></body></html>"""
         return HTMLResponse(content=html)
     except Exception as e:

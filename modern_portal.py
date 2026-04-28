@@ -13,6 +13,52 @@ app = FastAPI(title="Talent Flow Style Portal", description="Modern recruitment 
 db = ResumeDatabase()
 scorer = SimpleResumeScorer()
 
+# Code-to-title mappings for HRMS integration
+def get_department_title(dept_code):
+    """Convert department code to full title"""
+    department_titles = {
+        'HR': 'Human Resources',
+        'IT': 'Information Technology', 
+        'FIN': 'Finance',
+        'DEPT-001': 'Networking',
+        'DEP-0002': 'Automation Lab'
+    }
+    return department_titles.get(dept_code, dept_code)
+
+def get_position_title(position_code):
+    """Convert position code to full title"""
+    position_titles = {
+        'POS-001': 'Software Engineer',
+        'POS-002': 'HR Manager', 
+        'POS-003': 'Accountant',
+        'POS-004': 'Marketing Specialist',
+        'POS-005': 'Project Manager',
+        'POS-006': 'Sales Representative',
+        'POS-007': 'Customer Service Representative',
+        'POS-008': 'Data Analyst',
+        'POS-009': 'Office Manager',
+        'POS-010': 'Quality Assurance Engineer',
+        'POS-011': 'Network Manager',
+        'POS-0012': 'AI Integration Specialist'
+    }
+    return position_titles.get(position_code, position_code)
+
+def enhance_job_data(jobs):
+    """Enhance job data with proper titles for display"""
+    for job in jobs:
+        dept_code = job.get('department', '')
+        title_code = job.get('title', '')
+        
+        # Get proper titles
+        dept_title = get_department_title(dept_code)
+        title_display = get_position_title(title_code)
+        
+        # Add enhanced fields
+        job['department_title'] = dept_title
+        job['title_display'] = title_display
+        
+    return jobs
+
 class AIAgent:
     """AI Agent for intelligent recruitment automation"""
     
@@ -586,10 +632,10 @@ A recruiter can activate an AI agent that handles resume scorer — from candida
     {% for job in jobs[:6] %}
     <div class="job-card" data-dept="{{ job.department }}" data-type="{{ job.job_type if job.job_type else '' }}">
       <div class="job-card-top">
-        <span class="dept-tag">{{ job.department }}</span>
+        <span class="dept-tag">{{ job.department_title }}</span>
         <span class="type-tag">{{ job.job_type if job.job_type else 'Open' }}</span>
       </div>
-      <div class="job-name">{{ job.title }}</div>
+      <div class="job-name">{{ job.title_display }}</div>
       <div class="job-blurb">{{ job.description[:110] }}{% if job.description|length > 110 %}...{% endif %}</div>
       <div class="job-foot">
         <span class="job-sal">{{ job.salary if job.salary else 'Competitive' }}</span>
@@ -988,6 +1034,7 @@ document.addEventListener('DOMContentLoaded', function() {
 @app.get("/", response_class=HTMLResponse)
 async def modern_landing_page(request: Request):
     jobs = db.get_all_jobs()
+    jobs = enhance_job_data(jobs)
     from jinja2 import Template
     html = Template(modern_landing_template).render(jobs=jobs)
     return HTMLResponse(content=html)
@@ -996,9 +1043,11 @@ async def modern_landing_page(request: Request):
 @app.get("/jobs", response_class=HTMLResponse)
 async def jobs_list(request: Request):
     jobs = db.get_all_jobs()
+    # Enhance jobs before rendering
+    enhanced_jobs = enhance_job_data(jobs)
     from job_portal import job_portal_template
     from jinja2 import Template
-    html = Template(job_portal_template).render(jobs=jobs, job=None)
+    html = Template(job_portal_template).render(jobs=enhanced_jobs, job=None)
     return HTMLResponse(content=html)
 
 
@@ -1007,6 +1056,8 @@ async def job_details(request: Request, job_id: int):
     job = db.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    # Enhance single job with proper titles
+    job = enhance_job_data([job])[0] if isinstance(job, dict) else job
     from job_portal import job_portal_template
     from jinja2 import Template
     html = Template(job_portal_template).render(job=job, jobs=[])

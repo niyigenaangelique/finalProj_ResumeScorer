@@ -100,7 +100,25 @@ def _build_assessment_page(user, assessments, results, jobs, accepted_candidates
         bg, fg = colors.get(s, ('#e9ecef','#495057'))
         return f'<span style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:{bg};color:{fg};">{s.upper()}</span>'
 
-    jobs_opts = ''.join(f'<option value="{j["id"]}">{j["title"]} ({j["department"]})</option>' for j in jobs)
+    # Position code to title mapping
+    position_titles = {
+        'POS-001': 'Software Engineer',
+        'POS-002': 'HR Manager', 
+        'POS-003': 'Accountant',
+        'POS-004': 'Marketing Specialist',
+        'POS-005': 'Project Manager',
+        'POS-006': 'Sales Representative',
+        'POS-007': 'Customer Service Representative',
+        'POS-008': 'Data Analyst',
+        'POS-009': 'Office Manager',
+        'POS-010': 'Quality Assurance Engineer',
+        'POS-011': 'Network Manager',
+        'POS-0012': 'AI Integration Specialist'
+    }
+    
+    # Only show jobs that have valid position codes
+    valid_jobs = [j for j in jobs if j.get("title") in position_titles]
+    jobs_opts = ''.join(f'<option value="{j["id"]}">{position_titles.get(j["title"], j["title"])}</option>' for j in valid_jobs)
     assess_opts = ''.join(f'<option value="{a["id"]}">{a["title"]}</option>' for a in assessments)
 
     candidate_rows = ''
@@ -115,10 +133,14 @@ def _build_assessment_page(user, assessments, results, jobs, accepted_candidates
             invite_action = f'''<button class="btn-xs btn-primary" onclick="sendAssessmentInvite({c['app_id']})"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>Send Test</button>'''
         elif c['invite_status'] == 'pending':
             invite_action = '<span style="color:var(--ink3);font-size:12px;">Invite sent</span>'
+        
+        # Convert job title code to readable name
+        job_title_display = position_titles.get(c['job_title'], c['job_title'])
+        
         candidate_rows += f"""
         <tr>
           <td><strong>{c['name']}</strong><br><small style="color:var(--ink3);">{c['email']}</small></td>
-          <td>{c['job_title']}</td>
+          <td>{job_title_display}</td>
           <td>{score_cell} {cheat}</td>
           <td>{passed_badge}</td>
           <td>{invite_action}</td>
@@ -131,10 +153,14 @@ def _build_assessment_page(user, assessments, results, jobs, accepted_candidates
         cheat_warn = ''
         if r.get('tab_switch_count', 0) > 2:
             cheat_warn = f'<br><small style="color:#dc3545;">{r["tab_switch_count"]} tab switches detected</small>'
+        
+        # Convert job title code to readable name
+        job_title_display = position_titles.get(r['job_title'], r['job_title'])
+        
         result_rows += f"""
         <tr>
           <td><strong>{r['applicant_name']}</strong></td>
-          <td>{r['job_title']}</td>
+          <td>{job_title_display}</td>
           <td>{r['assessment_title']}</td>
           <td>
             <div style="display:flex;align-items:center;gap:8px;">
@@ -150,11 +176,14 @@ def _build_assessment_page(user, assessments, results, jobs, accepted_candidates
 
     assess_cards = ''
     for a in assessments:
+        # Convert job title code to readable name
+        job_title_display = position_titles.get(a.get('job_title'), a.get('job_title') or 'All Jobs')
+        
         assess_cards += f"""
         <div class="card" style="padding:20px;margin-bottom:12px;display:flex;align-items:center;gap:16px;justify-content:space-between;">
           <div>
             <div style="font-weight:700;font-size:15px;">{a['title']}</div>
-            <div style="color:var(--ink3);font-size:12px;">{a.get('job_title') or 'All Jobs'} · {a['question_count']} questions · {a['time_limit_minutes']} min · Passing: {a['passing_score']}%</div>
+            <div style="color:var(--ink3);font-size:12px;">{job_title_display} · {a['question_count']} questions · {a['time_limit_minutes']} min · Passing: {a['passing_score']}%</div>
           </div>
           <div style="display:flex;gap:8px;">
             <button class="btn-xs btn-outline" onclick="viewQuestions({a['id']})"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>Questions</button>

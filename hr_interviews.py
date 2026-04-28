@@ -245,6 +245,63 @@ async def interview_scheduling(request: Request):
   </div>
 </div>
 
+<!-- ══ VIEW / EDIT MODAL ══ -->
+<div id="viewModal" style="display:none;position:fixed;inset:0;background:rgba(13,14,26,0.55);
+     z-index:10000;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
+  <div style="background:var(--white);border-radius:16px;padding:32px;max-width:560px;width:90%;
+              max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);position:relative;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <span style="font-family:'Sora',sans-serif;font-size:16px;font-weight:700;color:var(--ink);"
+        id="viewModalTitle"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Interview Details</span>
+      <button onclick="closeModal()" style="background:var(--bg);border:1px solid var(--border);
+              border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--ink2);"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div id="viewModalContent"></div>
+  </div>
+</div>
+
+<!-- ══ UNIVERSAL CONFIRMATION MODAL ══ -->
+<div id="confirmModal" style="display:none;position:fixed;inset:0;background:rgba(13,14,26,0.55);
+     z-index:10000;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
+  <div style="background:var(--white);border-radius:16px;padding:32px;max-width:480px;width:90%;
+              box-shadow:0 20px 60px rgba(0,0,0,0.2);position:relative;text-align:center;">
+    <div id="confirmIcon" style="width:64px;height:64px;border-radius:50%;
+                display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+    </div>
+    <h3 id="confirmTitle" style="font-size:22px;font-weight:700;color:var(--ink);margin-bottom:12px;">Confirm Action</h3>
+    <p id="confirmMessage" style="color:var(--ink2);line-height:1.6;margin-bottom:24px;">
+      Are you sure you want to proceed with this action?
+    </p>
+    <div style="display:flex;gap:12px;justify-content:center;">
+      <button class="btn btn-outline" onclick="closeConfirmModal()" style="min-width:100px;">Cancel</button>
+      <button class="btn btn-primary" id="confirmBtn" onclick="confirmAction()" style="min-width:100px;">
+        <span id="confirmBtnText">Confirm</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ UNIVERSAL CONFIRMATION MODAL ══ -->
+<div id="confirmModal" style="display:none;position:fixed;inset:0;background:rgba(13,14,26,0.55);
+     z-index:10000;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
+  <div style="background:var(--white);border-radius:16px;padding:32px;max-width:480px;width:90%;
+              box-shadow:0 20px 60px rgba(0,0,0,0.2);position:relative;text-align:center;">
+    <div id="confirmIcon" style="width:64px;height:64px;border-radius:50%;
+                display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+    </div>
+    <h3 id="confirmTitle" style="font-size:22px;font-weight:700;color:var(--ink);margin-bottom:12px;">Confirm Action</h3>
+    <p id="confirmMessage" style="color:var(--ink2);line-height:1.6;margin-bottom:24px;">
+      Are you sure you want to proceed with this action?
+    </p>
+    <div style="display:flex;gap:12px;justify-content:center;">
+      <button class="btn btn-outline" onclick="closeConfirmModal()" style="min-width:100px;">Cancel</button>
+      <button class="btn btn-primary" id="confirmBtn" onclick="confirmAction()" style="min-width:100px;">
+        <span id="confirmBtnText">Confirm</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ INTERVIEWS LIST ══ -->
 <div class="card" style="margin-top:8px;animation:fadeUp 0.35s ease 0.22s both;">
   <div class="card-hd">
@@ -619,7 +676,35 @@ function editInterview(id) {{
 }}
 
 async function setInterviewResult(id, result) {{
-  if (!confirm(`Are you sure you want to mark this interview as ${{result.toUpperCase()}}?`)) return;
+  showConfirmModal({{
+    title: `Mark Interview as ${{result.toUpperCase()}}?`,
+    message: `Are you sure you want to mark this interview as ${{result.toUpperCase()}}? This action cannot be undone.`,
+    icon: 'warning',
+    confirmText: `Mark as ${{result.toUpperCase()}}`,
+    confirmType: 'primary',
+    onConfirm: async () => {{
+      try {{
+        const r = await fetch('/api/interview-result', {{
+          method: 'POST',
+          headers: {{'Content-Type': 'application/json'}},
+          body: JSON.stringify({{ interview_id: id, result: result }})
+        }});
+        const d = await r.json();
+        if (d.success) {{
+          showToast('Success', d.message);
+          closeConfirmModal();
+          setTimeout(() => location.reload(), 1000);
+        }} else {{
+          showToast('Error', d.error, 'error');
+          closeConfirmModal();
+        }}
+      }} catch (e) {{
+        showToast('Error', e.message, 'error');
+        closeConfirmModal();
+      }}
+    }}
+  }});
+}}
   try {{
     const r = await fetch('/api/interview-result', {{
       method: 'POST',
@@ -638,24 +723,110 @@ async function setInterviewResult(id, result) {{
   }}
 }}
 
+// ── UNIVERSAL CONFIRMATION SYSTEM ─────────────────────────
+let currentConfirmCallback = null;
+
+function showConfirmModal(options) {{
+  const {{
+    title = 'Confirm Action',
+    message = 'Are you sure you want to proceed with this action?',
+    icon = 'warning',
+    confirmText = 'Confirm',
+    confirmType = 'primary',
+    onConfirm
+  }} = options;
+  
+  // Set modal content
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMessage').textContent = message;
+  document.getElementById('confirmBtnText').textContent = confirmText;
+  
+  // Set icon
+  const iconEl = document.getElementById('confirmIcon');
+  const btnEl = document.getElementById('confirmBtn');
+  
+  if (icon === 'danger') {{
+    iconEl.style.background = 'linear-gradient(135deg,#f56565,#e53e3e)';
+    iconEl.innerHTML = `<svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+      <path d="M3 6h18M19 6v12a2 2 0 0 1-2 2v2H7a2 2 0 0 1-2 2v2m3 0h6l-3 3h6m0 0h6"/>
+    </svg>`;
+    btnEl.className = 'btn btn-danger';
+  }} else if (icon === 'warning') {{
+    iconEl.style.background = 'linear-gradient(135deg,#f6ad55,#ed8936)';
+    iconEl.innerHTML = `<svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 1-2 2v2M1.82 18h16.36M19 18l-1.27 1.36A4 4 0 0 1-2 2v2m3 0h6l-3 3h6m0 0h6"/>
+      <line x1="12" y1="9" x2="12" y2="13"/>
+    </svg>`;
+    btnEl.className = 'btn btn-warning';
+  }} else {{
+    iconEl.style.background = 'linear-gradient(135deg,#4299e1,#3182ce)';
+    iconEl.innerHTML = `<svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+      <path d="M13 16h-1v-4a2 2 0 0 1-2 2v2H7a2 2 0 0 1-2 2v2m3 0h6l-3 3h6m0 0h6"/>
+    </svg>`;
+    btnEl.className = 'btn btn-' + confirmType;
+  }}
+  
+  // Store callback
+  currentConfirmCallback = onConfirm;
+  
+  // Show modal
+  document.getElementById('confirmModal').style.display = 'flex';
+}}
+
+function confirmAction() {{
+  const btn = document.getElementById('confirmBtn');
+  const btnText = document.getElementById('confirmBtnText');
+  
+  btn.disabled = true;
+  btnText.textContent = 'Processing...';
+  
+  if (currentConfirmCallback) {{
+    currentConfirmCallback();
+  }}
+}}
+
+function closeConfirmModal() {{
+  document.getElementById('confirmModal').style.display = 'none';
+  currentConfirmCallback = null;
+  
+  // Reset button state
+  const btn = document.getElementById('confirmBtn');
+  const btnText = document.getElementById('confirmBtnText');
+  btn.disabled = false;
+  btnText.textContent = 'Confirm';
+}}
+
 // ── CANCEL ────────────────────────────────────────────
 function cancelInterview(id) {{
-  if (!confirm('Cancel this interview? This will notify the candidate.')) return;
-  fetch('/api/cancel-interview', {{
-    method:'POST',
-    headers:{{'Content-Type':'application/json'}},
-    body: JSON.stringify({{interview_id: id}})
-  }})
-  .then(r => r.json())
-  .then(d => {{
-    if (d.success) {{
-      showToast('Cancelled', 'Interview has been cancelled.', 'warning');
-      setTimeout(() => location.reload(), 1200);
-    }} else {{
-      showToast('Error', d.error || 'Could not cancel.', 'error');
+  showConfirmModal({{
+    title: 'Cancel Interview?',
+    message: 'Cancel this interview? This will notify the candidate.',
+    icon: 'warning',
+    confirmText: 'Cancel Interview',
+    confirmType: 'warning',
+    onConfirm: () => {{
+      fetch('/api/cancel-interview', {{
+        method:'POST',
+        headers:{{'Content-Type':'application/json'}},
+        body: JSON.stringify({{interview_id: id}})
+      }})
+      .then(r => r.json())
+      .then(d => {{
+        if (d.success) {{
+          showToast('Cancelled', 'Interview has been cancelled.', 'warning');
+          closeConfirmModal();
+          setTimeout(() => location.reload(), 1200);
+        }} else {{
+          showToast('Error', d.error || 'Could not cancel.', 'error');
+          closeConfirmModal();
+        }}
+      }})
+      .catch(() => {{
+        showToast('Error', 'Network error.', 'error');
+        closeConfirmModal();
+      }});
     }}
-  }})
-  .catch(() => showToast('Error', 'Network error.', 'error'));
+  }});
 }}
 
 // ── FORM SUBMIT ────────────────────────────────────────

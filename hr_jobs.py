@@ -49,8 +49,8 @@ async def hrms_metadata(request: Request):
     meta_url = os.getenv("TALENTFLOW_HRMS_METADATA_URL", f"{base}/api/external-recruitment/metadata").strip()
 
     defaults = {
-        "departments": ["Engineering", "Marketing", "Sales", "Human Resources", "Finance", "Operations", "Customer Service", "Product", "Design"],
-        "positions": [],
+        "departments": ["HR", "IT", "FIN", "DEPT-001", "DEP-0002"],
+        "positions": ["POS-001", "POS-002", "POS-003", "POS-004", "POS-005", "POS-006", "POS-007", "POS-008", "POS-009", "POS-010", "POS-011", "POS-0012"],
         "shifts": ["Day Shift", "Night Shift", "Flexible", "On-call"],
     }
 
@@ -199,6 +199,27 @@ async def job_management(request: Request):
   </div>
 </div>
 
+<!-- ══ UNIVERSAL CONFIRMATION MODAL ══ -->
+<div id="confirmModal" style="display:none;position:fixed;inset:0;background:rgba(13,14,26,0.55);
+     z-index:10000;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
+  <div style="background:var(--white);border-radius:16px;padding:32px;max-width:480px;width:90%;
+              box-shadow:0 20px 60px rgba(0,0,0,0.2);position:relative;text-align:center;">
+    <div id="confirmIcon" style="width:64px;height:64px;border-radius:50%;
+                display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+    </div>
+    <h3 id="confirmTitle" style="font-size:22px;font-weight:700;color:var(--ink);margin-bottom:12px;">Confirm Action</h3>
+    <p id="confirmMessage" style="color:var(--ink2);line-height:1.6;margin-bottom:24px;">
+      Are you sure you want to proceed with this action?
+    </p>
+    <div style="display:flex;gap:12px;justify-content:center;">
+      <button class="btn btn-outline" onclick="closeConfirmModal()" style="min-width:100px;">Cancel</button>
+      <button class="btn btn-primary" id="confirmBtn" onclick="confirmAction()" style="min-width:100px;">
+        <span id="confirmBtnText">Confirm</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ APPLICATIONS PANEL ══ -->
 <div id="panel-applications" class="card" style="display:none;animation:fadeUp 0.3s ease both;">
   <div class="card-hd">
@@ -321,9 +342,47 @@ function _fillSelect(selId, items, placeholder) {{
   if(!sel) return;
   sel.innerHTML = '';
   sel.appendChild(_opt(placeholder || 'Select…', ''));
+  
+  // Position code to title mapping
+  const positionTitles = {{
+    'POS-001': 'Software Engineer',
+    'POS-002': 'HR Manager', 
+    'POS-003': 'Accountant',
+    'POS-004': 'Marketing Specialist',
+    'POS-005': 'Project Manager',
+    'POS-006': 'Sales Representative',
+    'POS-007': 'Customer Service Representative',
+    'POS-008': 'Data Analyst',
+    'POS-009': 'Office Manager',
+    'POS-010': 'Quality Assurance Engineer',
+    'POS-011': 'Network Manager',
+    'POS-0012': 'AI Integration Specialist'
+  }};
+  
+  // Department code to title mapping
+  const departmentTitles = {{
+    'HR': 'Human Resources',
+    'IT': 'Information Technology', 
+    'FIN': 'Finance',
+    'DEPT-001': 'Networking',
+    'DEP-0002': 'Automation Lab'
+  }};
+  
   (items || []).forEach(it => {{
-    const name = (typeof it === 'string') ? it : (it.name || it.title || it.label || it.value || '');
-    const val  = (typeof it === 'string') ? it : (it.name || it.title || it.label || it.value || '');
+    let name, val;
+    if (typeof it === 'string') {{
+      val = it;
+      if (selId === 'jobTitle' || selId === 'job_title') {{
+        name = positionTitles[it] || it;
+      }} else if (selId === 'department' || selId === 'jobDepartment') {{
+        name = departmentTitles[it] || it;
+      }} else {{
+        name = it;
+      }}
+    }} else {{
+      name = it.name || it.title || it.label || it.value || '';
+      val = it.name || it.title || it.label || it.value || '';
+    }}
     if(name) sel.appendChild(_opt(name, val));
   }});
 }}
@@ -411,7 +470,7 @@ function editJob(id) {{
 function submitJob() {{
   const btn  = document.getElementById('jobSubmitBtn');
   const data = {{
-    title:       document.getElementById('jobTitle').value,
+    'title':       document.getElementById('jobTitle').value,
     department:  document.getElementById('jobDepartment').value,
     location:    document.getElementById('jobLocation').value,
     work_mode:   document.getElementById('jobWorkMode').value,
@@ -443,22 +502,109 @@ function submitJob() {{
     .catch(() => {{ btn.disabled=false; showToast('Error','Network error.','error'); }});
 }}
 
+// ── UNIVERSAL CONFIRMATION SYSTEM ───────────────────────────────
+let currentConfirmCallback = null;
+
+function showConfirmModal(options) {{
+  const {{
+    title = 'Confirm Action',
+    message = 'Are you sure you want to proceed with this action?',
+    icon = 'warning',
+    confirmText = 'Confirm',
+    confirmType = 'primary',
+    onConfirm
+  }} = options;
+  
+  // Set modal content
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMessage').textContent = message;
+  document.getElementById('confirmBtnText').textContent = confirmText;
+  
+  // Set icon
+  const iconEl = document.getElementById('confirmIcon');
+  const btnEl = document.getElementById('confirmBtn');
+  
+  if (icon === 'danger') {{
+    iconEl.style.background = 'linear-gradient(135deg,#f56565,#e53e3e)';
+    iconEl.innerHTML = `<svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+      <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14"/>
+    </svg>`;
+    btnEl.className = 'btn btn-danger';
+  }} else if (icon === 'warning') {{
+    iconEl.style.background = 'linear-gradient(135deg,#f6ad55,#ed8936)';
+    iconEl.innerHTML = `<svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+      <line x1="12" y1="9" x2="12" y2="13"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>`;
+    btnEl.className = 'btn btn-warning';
+  }} else {{
+    iconEl.style.background = 'linear-gradient(135deg,#4299e1,#3182ce)';
+    iconEl.innerHTML = `<svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+      <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
+    </svg>`;
+    btnEl.className = 'btn btn-' + confirmType;
+  }}
+  
+  // Store callback
+  currentConfirmCallback = onConfirm;
+  
+  // Show modal
+  document.getElementById('confirmModal').style.display = 'flex';
+}}
+
+function confirmAction() {{
+  const btn = document.getElementById('confirmBtn');
+  const btnText = document.getElementById('confirmBtnText');
+  
+  btn.disabled = true;
+  btnText.textContent = 'Processing...';
+  
+  if (currentConfirmCallback) {{
+    currentConfirmCallback();
+  }}
+}}
+
+function closeConfirmModal() {{
+  document.getElementById('confirmModal').style.display = 'none';
+  currentConfirmCallback = null;
+  
+  // Reset button state
+  const btn = document.getElementById('confirmBtn');
+  const btnText = document.getElementById('confirmBtnText');
+  btn.disabled = false;
+  btnText.textContent = 'Confirm';
+}}
+
 function deleteJob(id) {{
-  window.tfDialog.confirm({
-    title: 'Delete Job',
-    message: 'Delete this job? All related applications will also be removed.',
-    okText: 'Delete',
-    cancelText: 'Cancel',
-    danger: true
-  }).then(ok => {{
-    if(!ok) return;
-  fetch('/api/delete-job', {{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{job_id:id}})}})
-    .then(r => r.json())
-    .then(d => {{
-      if (d.success) {{ showToast('Deleted','Job removed.','warning'); setTimeout(()=>location.reload(),1000); }}
-      else showToast('Error', d.error||'Failed.', 'error');
-    }})
-    .catch(() => showToast('Error','Network error.','error'));
+  showConfirmModal({{
+    title: 'Delete Job?',
+    message: 'Are you sure you want to delete this job? This action cannot be undone and all related applications will also be permanently removed.',
+    icon: 'danger',
+    confirmText: 'Delete Job',
+    confirmType: 'danger',
+    onConfirm: () => {{
+      fetch('/api/delete-job', {{
+        method: 'POST',
+        headers: {{'Content-Type': 'application/json'}},
+        body: JSON.stringify({{job_id: id}})
+      }})
+      .then(r => r.json())
+      .then(d => {{
+        if (d.success) {{
+          showToast('Deleted', 'Job removed.', 'warning');
+          closeConfirmModal();
+          setTimeout(() => location.reload(), 1000);
+        }} else {{
+          showToast('Error', d.error || 'Failed.', 'error');
+          closeConfirmModal();
+        }}
+      }})
+      .catch(() => {{
+        showToast('Error', 'Network error.', 'error');
+        closeConfirmModal();
+      }});
+    }}
   }});
 }}
 
@@ -607,8 +753,11 @@ function scheduleInterview(id) {{
   window.location.href = '/interviews?application=' + id;
 }}
 
+// ── GLOBAL VARIABLES ────────────────────────────────────
+let currentDeleteId = null;
+
 // ── MODAL BACKDROP ────────────────────────────────────
-['jobModal','appModal'].forEach(id => {{
+['jobModal','appModal','confirmModal'].forEach(id => {{
   document.getElementById(id).addEventListener('click', function(e) {{
     if (e.target === this) this.style.display = 'none';
   }});
@@ -690,14 +839,46 @@ def _badge(cls: str, label: str) -> str:
 def _build_job_rows(jobs: list) -> str:
     if not jobs:
         return '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--ink3);">No jobs posted yet. <a href="/post-job" style="color:var(--blue);">Post your first job →</a></td></tr>'
+    
+    # Code-to-title mappings
+    position_titles = {
+        'POS-001': 'Software Engineer',
+        'POS-002': 'HR Manager', 
+        'POS-003': 'Accountant',
+        'POS-004': 'Marketing Specialist',
+        'POS-005': 'Project Manager',
+        'POS-006': 'Sales Representative',
+        'POS-007': 'Customer Service Representative',
+        'POS-008': 'Data Analyst',
+        'POS-009': 'Office Manager',
+        'POS-010': 'Quality Assurance Engineer',
+        'POS-011': 'Network Manager',
+        'POS-0012': 'AI Integration Specialist'
+    }
+    
+    department_titles = {
+        'HR': 'Human Resources',
+        'IT': 'Information Technology', 
+        'FIN': 'Finance',
+        'DEPT-001': 'Networking',
+        'DEP-0002': 'Automation Lab'
+    }
+    
     rows = ""
     for j in jobs:
         status = (j.get("status") or "active").lower()
         bcls, blabel = _STATUS_JOB.get(status, ("badge-neutral", status.title()))
         date = str(j.get("posted_date") or "")[:10] or "—"
+        
+        # Convert codes to readable names
+        title_code = j.get('title', '—')
+        dept_code = j.get('department', '—')
+        title_display = position_titles.get(title_code, title_code)
+        dept_display = department_titles.get(dept_code, dept_code)
+        
         rows += f"""<tr>
-          <td><strong style="font-size:13.5px;color:var(--ink);">{j.get('title','—')}</strong></td>
-          <td>{j.get('department','—')}</td>
+          <td><strong style="font-size:13.5px;color:var(--ink);">{title_display}</strong></td>
+          <td>{dept_display}</td>
           <td>{j.get('location','—') or '—'}</td>
           <td style="white-space:nowrap;">{j.get('salary','—') or '—'}</td>
           <td style="white-space:nowrap;">{date}</td>
